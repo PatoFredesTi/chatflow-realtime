@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Avatar } from '../common';
 
+interface SidebarProps {
+  onSelectChat?: (chatId: string) => void;
+}
+
 // Datos de ejemplo (después vendrán del store)
 const mockConversations = [
   {
@@ -29,7 +33,7 @@ const mockConversations = [
   },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ onSelectChat }: SidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
 
@@ -46,6 +50,11 @@ export const Sidebar = () => {
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
     return `${days}d`;
+  };
+
+  const handleSelectChat = (chatId: string) => {
+    setSelectedChat(chatId);
+    onSelectChat?.(chatId);
   };
 
   return (
@@ -101,7 +110,7 @@ export const Sidebar = () => {
         {filteredConversations.map((conv) => (
           <button
             key={conv.id}
-            onClick={() => setSelectedChat(conv.id)}
+            onClick={() => handleSelectChat(conv.id)}
             className={`w-full p-4 flex items-center gap-3 hover:bg-gray-700 transition-colors border-l-4 ${
               selectedChat === conv.id
                 ? 'bg-gray-700 border-blue-600'
