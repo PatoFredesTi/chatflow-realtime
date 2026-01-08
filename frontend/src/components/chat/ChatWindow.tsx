@@ -2,52 +2,18 @@ import { useRef, useEffect } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { Avatar } from '../common';
-import type { Message } from '../../types/message.types';
-
-// Datos de ejemplo
-const mockMessages: Message[] = [
-  {
-    messageId: '1',
-    conversationId: '1',
-    senderId: 'user2',
-    text: '¡Hola! ¿Cómo estás?',
-    timestamp: Date.now() - 1000 * 60 * 10,
-    status: 'read',
-  },
-  {
-    messageId: '2',
-    conversationId: '1',
-    senderId: 'currentUser',
-    text: '¡Muy bien! ¿Y tú?',
-    timestamp: Date.now() - 1000 * 60 * 9,
-    status: 'read',
-  },
-  {
-    messageId: '3',
-    conversationId: '1',
-    senderId: 'user2',
-    text: 'Genial, trabajando en el proyecto de React',
-    timestamp: Date.now() - 1000 * 60 * 8,
-    status: 'read',
-  },
-  {
-    messageId: '4',
-    conversationId: '1',
-    senderId: 'currentUser',
-    text: '¡Qué bueno! Yo también estoy con un proyecto de chat en tiempo real',
-    timestamp: Date.now() - 1000 * 60 * 5,
-    status: 'delivered',
-  },
-];
+import { useMessages } from '../../hooks';
 
 interface ChatWindowProps {
+  conversationId: string;
   conversationName: string;
   isOnline?: boolean;
 }
 
-export const ChatWindow = ({ conversationName, isOnline }: ChatWindowProps) => {
+export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatWindowProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentUserId = 'currentUser';
+  const { messages, isLoading, sendMessage } = useMessages(conversationId);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,11 +21,10 @@ export const ChatWindow = ({ conversationName, isOnline }: ChatWindowProps) => {
 
   useEffect(() => {
     scrollToBottom();
-  }, []);
+  }, [messages]);
 
-  const handleSendMessage = (text: string) => {
-    console.log('Enviando mensaje:', text);
-    // Aquí irá la lógica para enviar el mensaje
+  const handleSendMessage = async (text: string) => {
+    await sendMessage(text);
   };
 
   return (
@@ -97,23 +62,31 @@ export const ChatWindow = ({ conversationName, isOnline }: ChatWindowProps) => {
 
       {/* Área de mensajes */}
       <div className="flex-1 overflow-y-auto p-6">
-        {mockMessages.map((message, index) => {
-          const isOwn = message.senderId === currentUserId;
-          const showAvatar = !isOwn && (
-            index === 0 || mockMessages[index - 1].senderId !== message.senderId
-          );
-          
-          return (
-            <MessageBubble
-              key={message.messageId}
-              message={message}
-              isOwn={isOwn}
-              senderName={!isOwn ? conversationName : undefined}
-              showAvatar={showAvatar}
-            />
-          );
-        })}
-        <div ref={messagesEndRef} />
+        {isLoading && messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-gray-400">Cargando mensajes...</div>
+          </div>
+        ) : (
+          <>
+            {messages.map((message, index) => {
+              const isOwn = message.senderId === currentUserId;
+              const showAvatar = !isOwn && (
+                index === 0 || messages[index - 1].senderId !== message.senderId
+              );
+              
+              return (
+                <MessageBubble
+                  key={message.messageId}
+                  message={message}
+                  isOwn={isOwn}
+                  senderName={!isOwn ? conversationName : undefined}
+                  showAvatar={showAvatar}
+                />
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       {/* Input de mensaje */}

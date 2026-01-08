@@ -1,19 +1,25 @@
 import { useState } from 'react';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
+import { useAuth } from '../../hooks';
 import type { LoginFormData, RegisterFormData } from '../../utils/validators';
 
 export const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const { login, register, isLoading, error } = useAuth();
 
-  const handleLogin = (data: LoginFormData) => {
-    console.log('Login:', data);
-    // Aquí irá la lógica de autenticación
+  const handleLogin = async (data: LoginFormData) => {
+    const result = await login(data);
+    if (result.success) {
+      console.log('Login exitoso');
+    }
   };
 
-  const handleRegister = (data: RegisterFormData) => {
-    console.log('Register:', data);
-    // Aquí irá la lógica de registro
+  const handleRegister = async (data: RegisterFormData) => {
+    const result = await register(data);
+    if (result.success) {
+      console.log('Registro exitoso');
+    }
   };
 
   return (
@@ -51,12 +57,19 @@ export const AuthPage = () => {
             </button>
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded-lg">
+              <p className="text-red-500 text-sm">{error}</p>
+            </div>
+          )}
+
           {/* Formularios */}
           <div className="mt-6">
             {isLogin ? (
-              <LoginForm onSubmit={handleLogin} />
+              <LoginForm onSubmit={handleLogin} isLoading={isLoading} />
             ) : (
-              <RegisterForm onSubmit={handleRegister} />
+              <RegisterForm onSubmit={handleRegister} isLoading={isLoading} />
             )}
           </div>
         </div>

@@ -1,10 +1,9 @@
 import { AuthPage } from './components/auth';
 import { ChatLayout } from './components/layout';
-import { useState } from 'react';
+import { useAuth } from './hooks';
 
 function App() {
-  // Cambia esto a true para ver el layout del chat
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return isAuthenticated ? <ChatLayout /> : <AuthPage />;
 }
