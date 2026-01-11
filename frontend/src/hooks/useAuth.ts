@@ -1,5 +1,7 @@
 import { useAuthStore } from '../stores/authStore';
 import { useState } from 'react';
+import { authAPI } from '../services/api';
+import { wsService } from '../services/websocket';
 import type { LoginFormData, RegisterFormData } from '../utils/validators';
 
 export const useAuth = () => {
@@ -12,25 +14,28 @@ export const useAuth = () => {
     setError(null);
 
     try {
-      // Simulación de login (después será API real)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await authAPI.login(data);
 
-      // Simular respuesta del servidor
-      const mockUser = {
-        userId: '123',
-        email: data.email,
-        username: data.email.split('@')[0],
-        createdAt: Date.now(),
-        lastSeen: Date.now(),
-        status: 'online' as const,
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
+      if (response.success && response.user) {
+        const authUser = {
+          ...response.user,
+          accessToken: response.accessToken,
+          refreshToken: '', // No usamos refresh token en este ejemplo
+          createdAt: Date.now(),
+          lastSeen: Date.now(),
+        };
 
-      setUser(mockUser);
-      return { success: true };
+        setUser(authUser);
+        
+        // Conectar al WebSocket
+        wsService.connect(response.user.userId);
+
+        return { success: true };
+      }
+
+      throw new Error('Error en la respuesta del servidor');
     } catch (err) {
-      const errorMessage = 'Error al iniciar sesión';
+      const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -43,25 +48,28 @@ export const useAuth = () => {
     setError(null);
 
     try {
-      // Simulación de registro (después será API real)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await authAPI.register(data);
 
-      // Simular respuesta del servidor
-      const mockUser = {
-        userId: '123',
-        email: data.email,
-        username: data.username,
-        createdAt: Date.now(),
-        lastSeen: Date.now(),
-        status: 'online' as const,
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
+      if (response.success && response.user) {
+        const authUser = {
+          ...response.user,
+          accessToken: response.accessToken,
+          refreshToken: '',
+          createdAt: Date.now(),
+          lastSeen: Date.now(),
+        };
 
-      setUser(mockUser);
-      return { success: true };
+        setUser(authUser);
+        
+        // Conectar al WebSocket
+        wsService.connect(response.user.userId);
+
+        return { success: true };
+      }
+
+      throw new Error('Error en la respuesta del servidor');
     } catch (err) {
-      const errorMessage = 'Error al registrarse';
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrarse';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -69,7 +77,11 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (user) {
+      await authAPI.logout(user.userId);
+      wsService.disconnect();
+    }
     logoutStore();
   };
 

@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useChatStore } from '../stores/chatStore';
+import { useAuthStore } from '../stores/authStore';
+import { conversationAPI } from '../services/api';
+import { wsService } from '../services/websocket';
 import type { Message } from '../types/message.types';
 
 export const useMessages = (conversationId: string | null) => {
   const { messages, addMessage, updateMessageStatus } = useChatStore();
+  const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const conversationMessages = conversationId 
@@ -17,43 +21,53 @@ export const useMessages = (conversationId: string | null) => {
     }
   }, [conversationId]);
 
+  // Configurar listeners de WebSocket
+  useEffect(() => {
+    if (!conversationId) return;
+
+    // Unirse a la conversación
+    wsService.joinConversation(conversationId);
+
+    // Escuchar nuevos mensajes
+    const handleNewMessage = (message: Message) => {
+      if (message.conversationId === conversationId) {
+        addMessage(conversationId, message);
+      }
+    };
+
+    // Escuchar confirmación de mensajes enviados
+    const handleMessageSent = (data: { tempId?: string; message: Message }) => {
+      if (data.tempId && data.message.conversationId === conversationId) {
+        // Reemplazar mensaje temporal con el real
+        updateMessageStatus(data.tempId, 'sent');
+      }
+    };
+
+    // Escuchar cambios de estado de mensajes
+    const handleMessageStatus = (data: { messageId: string; status: Message['status'] }) => {
+      updateMessageStatus(data.messageId, data.status);
+    };
+
+    wsService.onNewMessage(handleNewMessage);
+    wsService.onMessageSent(handleMessageSent);
+    wsService.onMessageStatus(handleMessageStatus);
+
+    // Cleanup
+    return () => {
+      // No removemos los listeners aquí porque son globales
+    };
+  }, [conversationId]);
+
   const loadMessages = async (convId: string) => {
     setIsLoading(true);
     
     try {
-      // Simulación de carga de mensajes (después será API real)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Mensajes mock
-      const mockMessages: Message[] = [
-        {
-          messageId: '1',
-          conversationId: convId,
-          senderId: 'user2',
-          text: '¡Hola! ¿Cómo estás?',
-          timestamp: Date.now() - 1000 * 60 * 10,
-          status: 'read',
-        },
-        {
-          messageId: '2',
-          conversationId: convId,
-          senderId: 'currentUser',
-          text: '¡Muy bien! ¿Y tú?',
-          timestamp: Date.now() - 1000 * 60 * 9,
-          status: 'read',
-        },
-        {
-          messageId: '3',
-          conversationId: convId,
-          senderId: 'user2',
-          text: 'Genial, trabajando en el proyecto',
-          timestamp: Date.now() - 1000 * 60 * 8,
-          status: 'read',
-        },
-      ];
-
-      // Agregar mensajes al store
-      mockMessages.forEach((msg) => addMessage(convId, msg));
+      const response = await conversationAPI.getMessages(convId);
+      
+      if (response.success && response.messages) {
+        // Agregar mensajes al store
+        response.messages.forEach((msg: Message) => addMessage(convId, msg));
+      }
     } catch (error) {
       console.error('Error cargando mensajes:', error);
     } finally {
@@ -62,15 +76,15 @@ export const useMessages = (conversationId: string | null) => {
   };
 
   const sendMessage = async (text: string) => {
-    if (!conversationId) return;
+    if (!conversationId || !user) return;
 
-    // Generar un ID único
-    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generar un ID temporal único
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const tempMessage: Message = {
-      messageId,
+      messageId: tempId,
       conversationId,
-      senderId: 'currentUser',
+      senderId: user.userId,
       text,
       timestamp: Date.now(),
       status: 'sending',
@@ -79,26 +93,8 @@ export const useMessages = (conversationId: string | null) => {
     // Agregar mensaje optimísticamente
     addMessage(conversationId, tempMessage);
 
-    try {
-      // Simulación de envío (después será WebSocket)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Actualizar estado a 'sent'
-      updateMessageStatus(messageId, 'sent');
-
-      // Simular 'delivered' después de un momento
-      setTimeout(() => {
-        updateMessageStatus(messageId, 'delivered');
-      }, 600);
-
-      // Simular 'read' después de otro momento
-      setTimeout(() => {
-        updateMessageStatus(messageId, 'read');
-      }, 1200);
-
-    } catch (error) {
-      console.error('Error enviando mensaje:', error);
-    }
+    // Enviar mensaje por WebSocket
+    wsService.sendMessage(conversationId, text, user.userId, tempId);
   };
 
   const loadMoreMessages = async () => {
@@ -107,10 +103,7 @@ export const useMessages = (conversationId: string | null) => {
     setIsLoading(true);
     
     try {
-      // Simulación de carga de más mensajes
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      // Aquí cargarías mensajes más antiguos
+      // Aquí cargarías mensajes más antiguos con paginación
       console.log('Cargando más mensajes...');
     } catch (error) {
       console.error('Error cargando más mensajes:', error);

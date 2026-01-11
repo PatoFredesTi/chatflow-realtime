@@ -1,8 +1,10 @@
 import { useRef, useEffect } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
+import { TypingIndicator } from './TypingIndicator';
 import { Avatar } from '../common';
-import { useMessages } from '../../hooks';
+import { useMessages, useTyping } from '../../hooks';
+import { useAuthStore } from '../../stores/authStore';
 
 interface ChatWindowProps {
   conversationId: string;
@@ -12,8 +14,9 @@ interface ChatWindowProps {
 
 export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatWindowProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const currentUserId = 'currentUser';
+  const { user } = useAuthStore();
   const { messages, isLoading, sendMessage } = useMessages(conversationId);
+  const { typingUsers } = useTyping(conversationId);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,7 +72,7 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
         ) : (
           <>
             {messages.map((message, index) => {
-              const isOwn = message.senderId === currentUserId;
+              const isOwn = message.senderId === user?.userId;
               const showAvatar = !isOwn && (
                 index === 0 || messages[index - 1].senderId !== message.senderId
               );
@@ -88,6 +91,11 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
           </>
         )}
       </div>
+
+      {/* Indicador de escritura */}
+      {typingUsers.length > 0 && (
+        <TypingIndicator username={typingUsers[0]} />
+      )}
 
       {/* Input de mensaje */}
       <MessageInput onSendMessage={handleSendMessage} />
