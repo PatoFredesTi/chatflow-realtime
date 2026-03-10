@@ -1,40 +1,61 @@
-import { useState } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from '../chat';
+import { useConversations } from '../../hooks';
 
 export const ChatLayout = () => {
-  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const { currentConversation, conversations } = useConversations();
 
-  // Mapeo simple de IDs a nombres (después vendrá del store)
-  const chatNames: { [key: string]: string } = {
-    '1': 'Juan Pérez',
-    '2': 'María García',
-    '3': 'Equipo Desarrollo',
+  const getCurrentConversation = () => {
+    if (!currentConversation) return null;
+    return conversations.find((c) => c.conversationId === currentConversation);
   };
 
+  const currentConv = getCurrentConversation();
+  const conversationName = currentConv?.name || 'Usuario';
+
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div style={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'  // ← IMPORTANTE: Evitar scroll en el contenedor principal
+    }}>
       <Header />
       
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar onSelectChat={setSelectedChat} />
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        overflow: 'hidden',  // ← IMPORTANTE: Los hijos manejan su propio scroll
+        minHeight: 0  // ← IMPORTANTE: Permite que flex-children se contraigan
+      }}>
+        <Sidebar />
         
-        {/* Área principal del chat */}
-        {selectedChat ? (
+        {currentConversation ? (
           <ChatWindow 
-            conversationId={selectedChat}
-            conversationName={chatNames[selectedChat] || 'Usuario'}
+            conversationId={currentConversation}
+            conversationName={conversationName}
             isOnline={true}
           />
         ) : (
-          <main className="flex-1 flex items-center justify-center bg-gray-900">
-            <div className="text-center">
-              <div className="text-6xl mb-4">💬</div>
-              <h2 className="text-2xl font-semibold text-white mb-2">
+          <main style={{ 
+            flex: 1, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            background: 'rgba(0, 13, 46, 0.4)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.3 }}>💬</div>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: 600,
+                color: 'white',
+                marginBottom: '8px'
+              }}>
                 Selecciona una conversación
               </h2>
-              <p className="text-gray-400">
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
                 Elige un chat de la lista o inicia una nueva conversación
               </p>
             </div>

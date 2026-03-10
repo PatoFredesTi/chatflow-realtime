@@ -1,6 +1,7 @@
-import { Avatar } from '../common';
-import { formatMessageTime } from '../../utils';
 import type { Message } from '../../types/message.types';
+import { Avatar } from '../common';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface MessageBubbleProps {
   message: Message;
@@ -9,83 +10,90 @@ interface MessageBubbleProps {
   showAvatar?: boolean;
 }
 
-export const MessageBubble = ({
-  message,
-  isOwn,
-  senderName,
-  showAvatar = true,
-}: MessageBubbleProps) => {
-  const getStatusIcon = () => {
-    switch (message.status) {
-      case 'sending':
-        return (
-          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        );
-      case 'sent':
-        return (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        );
-      case 'delivered':
-        return (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13l4 4L23 7" />
-          </svg>
-        );
-      case 'read':
-        return (
-          <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13l4 4L23 7" />
-          </svg>
-        );
-    }
+export const MessageBubble = ({ message, isOwn, senderName, showAvatar }: MessageBubbleProps) => {
+  const formatTime = (timestamp: number) => {
+    return formatDistanceToNow(new Date(timestamp), { 
+      addSuffix: true, 
+      locale: es 
+    });
   };
 
   return (
-    <div className={`flex gap-3 mb-4 ${isOwn ? 'flex-row-reverse' : ''}`}>
-      {showAvatar && !isOwn && (
-        <div className="flex-shrink-0">
-          <Avatar alt={senderName || 'Usuario'} size="sm" />
+    <div style={{
+      display: 'flex',
+      justifyContent: isOwn ? 'flex-end' : 'flex-start',
+      marginBottom: '16px',
+      gap: '8px',
+      animation: 'fadeIn 0.3s ease-out'
+    }}>
+      {!isOwn && (
+        <div style={{ width: '32px', flexShrink: 0 }}>
+          {showAvatar && <Avatar alt={senderName || 'Usuario'} size="sm" />}
         </div>
       )}
 
-      <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
-        {!isOwn && senderName && (
-          <span className="text-xs text-gray-400 mb-1 px-2">{senderName}</span>
-        )}
-        
-        <div
-          className={`px-4 py-2 rounded-2xl ${
-            isOwn
-              ? 'bg-blue-600 text-white rounded-tr-sm'
-              : 'bg-gray-700 text-white rounded-tl-sm'
-          }`}
-        >
-          <p className="whitespace-pre-wrap break-words">{message.text}</p>
-        </div>
-
-        <div className={`flex items-center gap-1 mt-1 px-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
-          <span className="text-xs text-gray-500">
-            {formatMessageTime(message.timestamp)}
+      <div style={{
+        maxWidth: '65%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
+      }}>
+        {!isOwn && senderName && showAvatar && (
+          <span style={{
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.5)',
+            paddingLeft: '12px',
+            fontWeight: 500
+          }}>
+            {senderName}
           </span>
-          {isOwn && <div className="text-gray-500">{getStatusIcon()}</div>}
+        )}
+
+        <div style={{
+          position: 'relative',
+          padding: '12px 16px',
+          borderRadius: isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+          background: isOwn 
+            ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
+            : 'rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${isOwn ? 'rgba(0, 119, 255, 0.3)' : 'rgba(255,255,255,0.1)'}`,
+          boxShadow: isOwn 
+            ? '0 4px 12px rgba(0, 119, 255, 0.2)'
+            : '0 2px 8px rgba(0,0,0,0.1)',
+          wordBreak: 'break-word'
+        }}>
+          <p style={{
+            color: 'white',
+            fontSize: '14px',
+            lineHeight: 1.5,
+            margin: 0
+          }}>
+            {message.text}
+          </p>
+
+          {/* Timestamp y estado */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginTop: '6px',
+            fontSize: '10px',
+            color: isOwn ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.4)'
+          }}>
+            <span>{formatTime(message.timestamp)}</span>
+            
+            {isOwn && (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                {message.status === 'sending' && '⏱'}
+                {message.status === 'sent' && '✓'}
+                {message.status === 'delivered' && '✓✓'}
+                {message.status === 'read' && (
+                  <span style={{ color: 'var(--msn-blue-sky)' }}>✓✓</span>
+                )}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

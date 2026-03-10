@@ -91,3 +91,21 @@ export const conversationAPI = {
     return response.json();
   },
 };
+
+// ← AGREGAR ESTA NUEVA SECCIÓN
+export const userAPI = {
+  searchUsers: async (query: string, excludeUserId?: string) => {
+    const params = new URLSearchParams({ q: query });
+    if (excludeUserId) {
+      params.append('exclude', excludeUserId);
+    }
+
+    const response = await fetch(`${API_URL}/users/search?${params}`);
+    
+    if (!response.ok) {
+      throw new Error('Error al buscar usuarios');
+    }
+
+    return response.json();
+  },
+};

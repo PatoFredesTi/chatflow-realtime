@@ -1,17 +1,15 @@
 import { useState } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Button } from '../common';
+import type { KeyboardEvent } from 'react';  
 
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
-  disabled?: boolean;
 }
 
-export const MessageInput = ({ onSendMessage, disabled }: MessageInputProps) => {
+export const MessageInput = ({ onSendMessage }: MessageInputProps) => {
   const [message, setMessage] = useState('');
 
-  const handleSubmit = () => {
-    if (message.trim() && !disabled) {
+  const handleSend = () => {
+    if (message.trim()) {
       onSendMessage(message.trim());
       setMessage('');
     }
@@ -20,73 +18,130 @@ export const MessageInput = ({ onSendMessage, disabled }: MessageInputProps) => 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      handleSend();
     }
   };
 
   return (
-    <div className="border-t border-gray-700 p-4 bg-gray-800">
-      <div className="flex items-end gap-3">
+    <div style={{
+      padding: '16px 24px',
+      background: 'rgba(0, 13, 46, 0.6)',
+      backdropFilter: 'blur(10px)',
+      borderTop: '1px solid rgba(255,255,255,0.1)'
+    }}>
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'flex-end'
+      }}>
+        {/* Botón de emojis */}
         <button
-          className="text-gray-400 hover:text-white transition-colors p-2"
-          title="Adjuntar archivo"
+          title="Emojis"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px',
+            color: 'rgba(255,255,255,0.6)',
+            cursor: 'pointer',
+            padding: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+            e.currentTarget.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+            e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+          }}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-            />
-          </svg>
+          😊
         </button>
 
+        {/* Textarea */}
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Escribe un mensaje..."
-          disabled={disabled}
           rows={1}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none max-h-32"
+          style={{
+            flex: 1,
+            padding: '12px 16px',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '10px',
+            color: 'white',
+            fontSize: '14px',
+            fontFamily: 'inherit',
+            outline: 'none',
+            resize: 'none',
+            maxHeight: '120px',
+            minHeight: '44px',
+            transition: 'all 0.2s ease'
+          }}
+          onFocus={(e) => {
+            e.target.style.background = 'rgba(255,255,255,0.12)';
+            e.target.style.borderColor = 'var(--msn-blue-bright)';
+            e.target.style.boxShadow = '0 0 0 2px rgba(26, 140, 255, 0.1)';
+          }}
+          onBlur={(e) => {
+            e.target.style.background = 'rgba(255,255,255,0.08)';
+            e.target.style.borderColor = 'rgba(255,255,255,0.12)';
+            e.target.style.boxShadow = 'none';
+          }}
         />
 
+        {/* Botón enviar */}
         <button
-          className="text-gray-400 hover:text-white transition-colors p-2"
-          title="Emoji"
+          onClick={handleSend}
+          disabled={!message.trim()}
+          title="Enviar mensaje"
+          style={{
+            padding: '10px 20px',
+            background: message.trim() 
+              ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
+              : 'rgba(255,255,255,0.05)',
+            border: 'none',
+            borderRadius: '8px',
+            color: message.trim() ? 'white' : 'rgba(255,255,255,0.3)',
+            cursor: message.trim() ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            boxShadow: message.trim() ? '0 4px 12px rgba(0, 119, 255, 0.3)' : 'none',
+            fontWeight: 600,
+            fontSize: '14px',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => {
+            if (message.trim()) {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 119, 255, 0.4)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = message.trim() ? '0 4px 12px rgba(0, 119, 255, 0.3)' : 'none';
+          }}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
         </button>
-
-        <Button
-          onClick={handleSubmit}
-          disabled={!message.trim() || disabled}
-          variant="primary"
-          className="px-6"
-        >
-          Enviar
-        </Button>
       </div>
-      <p className="text-xs text-gray-500 mt-2">
+
+      <p style={{
+        fontSize: '11px',
+        color: 'rgba(255,255,255,0.4)',
+        marginTop: '8px',
+        marginLeft: '4px'
+      }}>
         Presiona Enter para enviar, Shift + Enter para nueva línea
       </p>
     </div>
