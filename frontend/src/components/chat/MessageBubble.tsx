@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Message } from '../../types/message.types';
 import { Avatar } from '../common';
 import { ReactionBadge } from './ReactionBadge';
@@ -25,6 +25,16 @@ export const MessageBubble = ({
   onToggleReaction,
 }: MessageBubbleProps) => {
   const [showPicker, setShowPicker] = useState(false);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    setShowPicker(true);
+  };
+
+  const handleMouseLeave = () => {
+    hideTimeoutRef.current = setTimeout(() => setShowPicker(false), 350);
+  };
 
   const formatTime = (timestamp: number) =>
     formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: es });
@@ -71,12 +81,14 @@ export const MessageBubble = ({
         {/* Bubble + picker wrapper */}
         <div
           style={{ position: 'relative' }}
-          onMouseEnter={() => setShowPicker(true)}
-          onMouseLeave={() => setShowPicker(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           {/* Emoji picker */}
           {showPicker && (
             <div
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
               style={{
                 position: 'absolute',
                 [isOwn ? 'right' : 'left']: 0,
