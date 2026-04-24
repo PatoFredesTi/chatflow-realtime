@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import authRoutes from './routes/authRoutes';
 import conversationRoutes from './routes/conversationRoutes';
+import userRoutes from './routes/userRoutes';
 import { dataService } from './services/dataService';
 import type { Message } from './models/types';
 
@@ -28,6 +29,7 @@ app.use(express.json());
 // Rutas REST
 app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/users', userRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });

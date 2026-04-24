@@ -97,6 +97,17 @@ class DataService {
     return Array.from(this.users.values());
   }
 
+  searchUsers(query: string, excludeUserId?: string): Omit<User, 'password'>[] {
+    const q = query.toLowerCase();
+    return Array.from(this.users.values())
+      .filter(
+        (u) =>
+          u.userId !== excludeUserId &&
+          (u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      )
+      .map(({ password: _p, ...rest }) => rest);
+  }
+
   createUser(email: string, username: string, password: string): User {
     const user: User = {
       userId: uuidv4(),
@@ -131,6 +142,15 @@ class DataService {
 
   getConversation(conversationId: string): Conversation | undefined {
     return this.conversations.get(conversationId);
+  }
+
+  findExistingConversation(userId1: string, userId2: string): Conversation | undefined {
+    return Array.from(this.conversations.values()).find(
+      (c) =>
+        c.type === 'individual' &&
+        c.participants.includes(userId1) &&
+        c.participants.includes(userId2)
+    );
   }
 
   createConversation(

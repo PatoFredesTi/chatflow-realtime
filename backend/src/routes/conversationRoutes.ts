@@ -26,7 +26,7 @@ router.get('/:conversationId/messages', (req: Request, res: Response) => {
   res.json({ success: true, messages, hasMore });
 });
 
-// Crear nueva conversación
+// Crear nueva conversación (find-or-create para chats individuales)
 router.post('/', (req: Request, res: Response) => {
   const { participants, type } = req.body;
 
@@ -37,12 +37,15 @@ router.post('/', (req: Request, res: Response) => {
     });
   }
 
-  const conversation = dataService.createConversation(participants, type);
+  if (type === 'individual' || (!type && participants.length === 2)) {
+    const existing = dataService.findExistingConversation(participants[0], participants[1]);
+    if (existing) {
+      return res.json({ success: true, conversation: existing });
+    }
+  }
 
-  res.status(201).json({
-    success: true,
-    conversation,
-  });
+  const conversation = dataService.createConversation(participants, type);
+  res.status(201).json({ success: true, conversation });
 });
 
 export default router;
