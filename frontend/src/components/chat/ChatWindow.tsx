@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { TypingIndicator } from './TypingIndicator';
@@ -14,17 +14,39 @@ interface ChatWindowProps {
 
 export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatWindowProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef<number>(0);
+  const loadingMoreRef = useRef(false);
+
   const { user } = useAuthStore();
-  const { messages, isLoading, sendMessage } = useMessages(conversationId);
+  const { messages, isLoading, isLoadingMore, hasMore, sendMessage, loadMoreMessages, toggleReaction } = useMessages(conversationId);
   const { typingUsers } = useTyping(conversationId);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
+  // Restaurar posición de scroll después de prepend
+  useLayoutEffect(() => {
+    if (loadingMoreRef.current && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
+      loadingMoreRef.current = false;
+    }
   }, [messages]);
+
+  // Scroll al fondo solo en carga inicial o mensaje nuevo propio
+  useEffect(() => {
+    if (!loadingMoreRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoadingMore || !hasMore) return;
+    if (container.scrollTop <= 60) {
+      prevScrollHeightRef.current = container.scrollHeight;
+      loadingMoreRef.current = true;
+      loadMoreMessages();
+    }
+  }, [isLoadingMore, hasMore, loadMoreMessages]);
 
   const handleSendMessage = async (text: string) => {
     await sendMessage(text);
@@ -151,21 +173,25 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
       </div>
 
       {/* Área de mensajes */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '24px',
-        background: 'rgba(0, 13, 46, 0.2)',
-        backgroundImage: `
-          repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0,0,0,0.02) 2px,
-            rgba(0,0,0,0.02) 4px
-          )
-        `
-      }}>
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px',
+          background: 'rgba(0, 13, 46, 0.2)',
+          backgroundImage: `
+            repeating-linear-gradient(
+              0deg,
+              transparent,
+              transparent 2px,
+              rgba(0,0,0,0.02) 2px,
+              rgba(0,0,0,0.02) 4px
+            )
+          `
+        }}
+      >
         {isLoading && messages.length === 0 ? (
           <div style={{
             display: 'flex',
@@ -196,6 +222,16 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
           </div>
         ) : (
           <>
+            {isLoadingMore && (
+              <div style={{
+                textAlign: 'center',
+                padding: '8px',
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.4)',
+              }}>
+                Cargando mensajes anteriores...
+              </div>
+            )}
             {messages.map((message, index) => {
               const isOwn = message.senderId === user?.userId;
               const showAvatar = !isOwn && (
@@ -207,8 +243,10 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
                   key={message.messageId}
                   message={message}
                   isOwn={isOwn}
+                  currentUserId={user?.userId || ''}
                   senderName={!isOwn ? conversationName : undefined}
                   showAvatar={showAvatar}
+                  onToggleReaction={toggleReaction}
                 />
               );
             })}

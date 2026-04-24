@@ -87,6 +87,11 @@ class WebSocketService {
     this.socket?.on('typing:stop', callback);
   }
 
+  // Marcar mensaje como entregado
+  markAsDelivered(messageId: string, conversationId: string) {
+    this.socket?.emit('message:delivered', { messageId, conversationId });
+  }
+
   // Marcar mensaje como leído
   markAsRead(messageId: string, conversationId: string) {
     this.socket?.emit('message:read', { messageId, conversationId });
@@ -95,6 +100,32 @@ class WebSocketService {
   // Escuchar cambios de estado de usuarios
   onUserStatus(callback: (data: { userId: string; status: 'online' | 'offline' }) => void) {
     this.socket?.on('user:status', callback);
+  }
+
+  offNewMessage(callback: (message: Message) => void) {
+    this.socket?.off('message:new', callback);
+  }
+
+  offMessageSent(callback: (data: { tempId?: string; message: Message }) => void) {
+    this.socket?.off('message:sent', callback);
+  }
+
+  offMessageStatus(callback: (data: { messageId: string; status: Message['status'] }) => void) {
+    this.socket?.off('message:status', callback);
+  }
+
+  // Enviar reacción (toggle)
+  toggleReaction(messageId: string, conversationId: string, emoji: string, userId: string) {
+    this.socket?.emit('reaction:toggle', { messageId, conversationId, emoji, userId });
+  }
+
+  // Escuchar actualizaciones de reacciones
+  onReactionUpdated(callback: (data: { messageId: string; reactions: { [emoji: string]: string[] } }) => void) {
+    this.socket?.on('reaction:updated', callback);
+  }
+
+  offReactionUpdated(callback: (data: { messageId: string; reactions: { [emoji: string]: string[] } }) => void) {
+    this.socket?.off('reaction:updated', callback);
   }
 
   // Limpiar todos los listeners

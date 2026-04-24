@@ -65,9 +65,14 @@ export const conversationAPI = {
     return response.json();
   },
 
-  getMessages: async (conversationId: string) => {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/messages`);
-    
+  getMessages: async (conversationId: string, before?: number, limit = 20) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (before !== undefined) params.append('before', String(before));
+
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/messages?${params}`
+    );
+
     if (!response.ok) {
       throw new Error('Error al obtener mensajes');
     }

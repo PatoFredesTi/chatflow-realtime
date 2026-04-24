@@ -15,16 +15,15 @@ router.get('/:userId', (req: Request, res: Response) => {
   });
 });
 
-// Obtener mensajes de una conversación
+// Obtener mensajes de una conversación (con paginación opcional)
 router.get('/:conversationId/messages', (req: Request, res: Response) => {
   const conversationId = req.params.conversationId as string;
+  const before = req.query.before ? Number(req.query.before) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : 20;
 
-  const messages = dataService.getMessages(conversationId);
+  const { messages, hasMore } = dataService.getMessagesPaginated(conversationId, before, limit);
 
-  res.json({
-    success: true,
-    messages,
-  });
+  res.json({ success: true, messages, hasMore });
 });
 
 // Crear nueva conversación

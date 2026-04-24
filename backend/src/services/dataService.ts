@@ -13,7 +13,6 @@ class DataService {
   }
 
   private initializeMockData() {
-    // Crear usuarios de ejemplo
     const user1: User = {
       userId: 'user1',
       email: 'juan@example.com',
@@ -37,7 +36,6 @@ class DataService {
     this.users.set(user1.userId, user1);
     this.users.set(user2.userId, user2);
 
-    // Crear conversación de ejemplo
     const conv1: Conversation = {
       conversationId: 'conv1',
       type: 'individual',
@@ -55,7 +53,6 @@ class DataService {
     this.userConversations.set('user1', ['conv1']);
     this.userConversations.set('user2', ['conv1']);
 
-    // Mensajes de ejemplo
     const messages: Message[] = [
       {
         messageId: 'msg1',
@@ -86,13 +83,18 @@ class DataService {
     this.messages.set('conv1', messages);
   }
 
-  // Usuarios
+  // ── Usuarios ──────────────────────────────────────────────────────────────
+
   findUserByEmail(email: string): User | undefined {
     return Array.from(this.users.values()).find((u) => u.email === email);
   }
 
   findUserById(userId: string): User | undefined {
     return this.users.get(userId);
+  }
+
+  getAllUsers(): User[] {
+    return Array.from(this.users.values());
   }
 
   createUser(email: string, username: string, password: string): User {
@@ -118,7 +120,8 @@ class DataService {
     }
   }
 
-  // Conversaciones
+  // ── Conversaciones ────────────────────────────────────────────────────────
+
   getUserConversations(userId: string): Conversation[] {
     const convIds = this.userConversations.get(userId) || [];
     return convIds
@@ -130,7 +133,10 @@ class DataService {
     return this.conversations.get(conversationId);
   }
 
-  createConversation(participants: string[], type: 'individual' | 'group' = 'individual'): Conversation {
+  createConversation(
+    participants: string[],
+    type: 'individual' | 'group' = 'individual'
+  ): Conversation {
     const conversation: Conversation = {
       conversationId: uuidv4(),
       type,
@@ -141,7 +147,6 @@ class DataService {
 
     this.conversations.set(conversation.conversationId, conversation);
 
-    // Agregar conversación a cada participante
     participants.forEach((userId) => {
       const userConvs = this.userConversations.get(userId) || [];
       userConvs.push(conversation.conversationId);
@@ -152,9 +157,31 @@ class DataService {
     return conversation;
   }
 
-  // Mensajes
+  // ── Mensajes ──────────────────────────────────────────────────────────────
+
   getMessages(conversationId: string): Message[] {
     return this.messages.get(conversationId) || [];
+  }
+
+  getMessagesPaginated(
+    conversationId: string,
+    before?: number,
+    limit: number = 20
+  ): { messages: Message[]; hasMore: boolean } {
+    const all = this.messages.get(conversationId) || [];
+    const filtered = before ? all.filter((m) => m.timestamp < before) : all;
+    const start = Math.max(0, filtered.length - limit);
+    return {
+      messages: filtered.slice(start),
+      hasMore: start > 0,
+    };
+  }
+
+  // Obtener un mensaje específico por ID dentro de una conversación
+  getMessage(messageId: string, conversationId: string): Message | undefined {
+    const messages = this.messages.get(conversationId);
+    if (!messages) return undefined;
+    return messages.find((m) => m.messageId === messageId);
   }
 
   addMessage(message: Message): Message {
@@ -162,7 +189,6 @@ class DataService {
     messages.push(message);
     this.messages.set(message.conversationId, messages);
 
-    // Actualizar última mensaje en conversación
     const conversation = this.conversations.get(message.conversationId);
     if (conversation) {
       conversation.lastMessage = {
@@ -176,13 +202,30 @@ class DataService {
     return message;
   }
 
-  updateMessageStatus(messageId: string, conversationId: string, status: Message['status']) {
+  updateMessageStatus(
+    messageId: string,
+    conversationId: string,
+    status: Message['status']
+  ) {
     const messages = this.messages.get(conversationId);
     if (messages) {
       const message = messages.find((m) => m.messageId === messageId);
       if (message) {
         message.status = status;
       }
+    }
+  }
+
+  // Reemplaza el mensaje completo en el array (usado para actualizar reactions)
+  updateMessage(updatedMessage: Message): void {
+    const messages = this.messages.get(updatedMessage.conversationId);
+    if (!messages) return;
+
+    const index = messages.findIndex(
+      (m) => m.messageId === updatedMessage.messageId
+    );
+    if (index !== -1) {
+      messages[index] = updatedMessage;
     }
   }
 }

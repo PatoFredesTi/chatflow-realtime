@@ -2,7 +2,7 @@ export interface User {
   userId: string;
   email: string;
   username: string;
-  password: string; // En producción esto estaría hasheado
+  password: string;
   avatar?: string;
   createdAt: number;
   lastSeen: number;
@@ -30,6 +30,9 @@ export interface Message {
   text: string;
   timestamp: number;
   status: 'sent' | 'delivered' | 'read';
+  reactions?: {
+    [emoji: string]: string[]; // emoji -> array de userIds
+  };
 }
 
 export interface AuthResponse {
