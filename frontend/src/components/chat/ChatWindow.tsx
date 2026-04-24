@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { TypingIndicator } from './TypingIndicator';
@@ -17,6 +17,11 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
   const loadingMoreRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
   const { user } = useAuthStore();
   const { messages, isLoading, isLoadingMore, hasMore, sendMessage, loadMoreMessages, toggleReaction } = useMessages(conversationId);
@@ -37,6 +42,47 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Computar matches de búsqueda
+  const matchingIds = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return messages.filter((m) => m.text.toLowerCase().includes(q)).map((m) => m.messageId);
+  }, [messages, searchQuery]);
+
+  const currentMatchId = matchingIds[currentMatchIndex] ?? null;
+
+  // Resetear búsqueda al cambiar conversación
+  useEffect(() => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setCurrentMatchIndex(0);
+  }, [conversationId]);
+
+  // Enfocar input al abrir búsqueda
+  useEffect(() => {
+    if (showSearch) searchInputRef.current?.focus();
+  }, [showSearch]);
+
+  // Scroll al match actual
+  useEffect(() => {
+    if (currentMatchId) {
+      document.getElementById(`msg-${currentMatchId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentMatchId]);
+
+  const goToPrevMatch = () => {
+    setCurrentMatchIndex((i) => (i - 1 + matchingIds.length) % matchingIds.length);
+  };
+
+  const goToNextMatch = () => {
+    setCurrentMatchIndex((i) => (i + 1) % matchingIds.length);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') goToNextMatch();
+    if (e.key === 'Escape') { setShowSearch(false); setSearchQuery(''); }
+  };
 
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -142,35 +188,91 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </button>
-          <button 
-            title="Más opciones"
+          <button
+            title="Buscar en la conversación"
+            onClick={() => { setShowSearch((v) => !v); setSearchQuery(''); setCurrentMatchIndex(0); }}
             style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              background: showSearch ? 'rgba(0, 119, 255, 0.25)' : 'rgba(255,255,255,0.1)',
+              border: `1px solid ${showSearch ? 'rgba(0,119,255,0.5)' : 'rgba(255,255,255,0.15)'}`,
               borderRadius: '8px',
-              color: 'rgba(255,255,255,0.7)',
+              color: showSearch ? 'white' : 'rgba(255,255,255,0.7)',
               cursor: 'pointer',
               padding: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-              e.currentTarget.style.color = 'white';
-            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'white'; }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+              e.currentTarget.style.background = showSearch ? 'rgba(0,119,255,0.25)' : 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.color = showSearch ? 'white' : 'rgba(255,255,255,0.7)';
             }}
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
         </div>
       </div>
+
+      {/* Barra de búsqueda */}
+      {showSearch && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 16px',
+          background: 'rgba(0,0,0,0.2)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <svg style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', width: '14px', height: '14px', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Buscar en la conversación..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentMatchIndex(0); }}
+              onKeyDown={handleSearchKeyDown}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '8px',
+                padding: '8px 12px 8px 32px',
+                color: 'white',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {matchingIds.length > 0 && (
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+              {currentMatchIndex + 1} / {matchingIds.length}
+            </span>
+          )}
+          {searchQuery && matchingIds.length === 0 && (
+            <span style={{ fontSize: '12px', color: 'rgba(255,100,100,0.8)', whiteSpace: 'nowrap' }}>
+              Sin resultados
+            </span>
+          )}
+
+          <button onClick={goToPrevMatch} disabled={matchingIds.length === 0} title="Anterior" style={{ background: 'none', border: 'none', color: matchingIds.length > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)', cursor: matchingIds.length > 0 ? 'pointer' : 'default', padding: '4px' }}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+          </button>
+          <button onClick={goToNextMatch} disabled={matchingIds.length === 0} title="Siguiente" style={{ background: 'none', border: 'none', color: matchingIds.length > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)', cursor: matchingIds.length > 0 ? 'pointer' : 'default', padding: '4px' }}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          <button onClick={() => { setShowSearch(false); setSearchQuery(''); }} title="Cerrar" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '4px' }}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
 
       {/* Área de mensajes */}
       <div
@@ -247,6 +349,8 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
                   senderName={!isOwn ? conversationName : undefined}
                   showAvatar={showAvatar}
                   onToggleReaction={toggleReaction}
+                  highlight={searchQuery.trim() || undefined}
+                  isCurrentMatch={message.messageId === currentMatchId}
                 />
               );
             })}

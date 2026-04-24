@@ -1,10 +1,18 @@
+import { useCallback } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from '../chat';
-import { useConversations } from '../../hooks';
+import { useConversations, useNotifications } from '../../hooks';
 
 export const ChatLayout = () => {
-  const { currentConversation, conversations } = useConversations();
+  const { currentConversation, conversations, selectConversation } = useConversations();
+
+  const handleNotificationClick = useCallback(
+    (conversationId: string) => selectConversation(conversationId),
+    [selectConversation]
+  );
+
+  useNotifications(conversations, handleNotificationClick);
 
   const getCurrentConversation = () => {
     if (!currentConversation) return null;

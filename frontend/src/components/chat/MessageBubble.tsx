@@ -14,7 +14,37 @@ interface MessageBubbleProps {
   senderName?: string;
   showAvatar?: boolean;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  highlight?: string;
+  isCurrentMatch?: boolean;
 }
+
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const HighlightedText = ({ text, query }: { text: string; query: string }) => {
+  if (!query) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark
+            key={i}
+            style={{
+              background: 'rgba(255, 220, 0, 0.45)',
+              color: 'white',
+              borderRadius: '2px',
+              padding: '0 1px',
+            }}
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
 
 export const MessageBubble = ({
   message,
@@ -23,6 +53,8 @@ export const MessageBubble = ({
   senderName,
   showAvatar,
   onToggleReaction,
+  highlight,
+  isCurrentMatch,
 }: MessageBubbleProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,6 +75,7 @@ export const MessageBubble = ({
 
   return (
     <div
+      id={`msg-${message.messageId}`}
       style={{
         display: 'flex',
         justifyContent: isOwn ? 'flex-end' : 'flex-start',
@@ -143,15 +176,20 @@ export const MessageBubble = ({
                 ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
                 : 'rgba(255,255,255,0.08)',
               backdropFilter: 'blur(10px)',
-              border: `1px solid ${isOwn ? 'rgba(0, 119, 255, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-              boxShadow: isOwn
+              border: isCurrentMatch
+                ? '1px solid rgba(255, 220, 0, 0.7)'
+                : `1px solid ${isOwn ? 'rgba(0, 119, 255, 0.3)' : 'rgba(255,255,255,0.1)'}`,
+              boxShadow: isCurrentMatch
+                ? '0 0 0 2px rgba(255, 220, 0, 0.25)'
+                : isOwn
                 ? '0 4px 12px rgba(0, 119, 255, 0.2)'
                 : '0 2px 8px rgba(0,0,0,0.1)',
               wordBreak: 'break-word',
+              transition: 'border 0.15s ease, box-shadow 0.15s ease',
             }}
           >
             <p style={{ color: 'white', fontSize: '14px', lineHeight: 1.5, margin: 0 }}>
-              {message.text}
+              <HighlightedText text={message.text} query={highlight || ''} />
             </p>
 
             <div
