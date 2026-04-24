@@ -98,8 +98,17 @@ class WebSocketService {
   }
 
   // Escuchar cambios de estado de usuarios
-  onUserStatus(callback: (data: { userId: string; status: 'online' | 'offline' }) => void) {
+  onUserStatus(callback: (data: { userId: string; status: 'online' | 'offline'; lastSeen?: number }) => void) {
     this.socket?.on('user:status', callback);
+  }
+
+  offUserStatus(callback: (data: { userId: string; status: 'online' | 'offline'; lastSeen?: number }) => void) {
+    this.socket?.off('user:status', callback);
+  }
+
+  // Recibir usuarios online al conectarse
+  onPresenceInitial(callback: (userIds: string[]) => void) {
+    this.socket?.once('presence:initial', callback);
   }
 
   offNewMessage(callback: (message: Message) => void) {

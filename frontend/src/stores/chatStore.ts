@@ -2,11 +2,17 @@ import { create } from 'zustand';
 import type { Conversation } from '../types/chat.types';
 import type { Message } from '../types/message.types';
 
+export interface UserPresence {
+  status: 'online' | 'offline';
+  lastSeen: number;
+}
+
 interface ChatState {
   conversations: Conversation[];
   currentConversation: string | null;
   messages: { [conversationId: string]: Message[] };
   hasMoreMessages: { [conversationId: string]: boolean };
+  userPresence: { [userId: string]: UserPresence };
 
   setConversations: (conversations: Conversation[]) => void;
   setCurrentConversation: (conversationId: string | null) => void;
@@ -16,6 +22,8 @@ interface ChatState {
   updateMessageStatus: (messageId: string, status: Message['status']) => void;
   updateMessageReactions: (messageId: string, reactions: { [emoji: string]: string[] }) => void;
   setHasMore: (conversationId: string, hasMore: boolean) => void;
+  setUserPresence: (userId: string, status: 'online' | 'offline', lastSeen?: number) => void;
+  setUsersOnline: (userIds: string[]) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -23,6 +31,7 @@ export const useChatStore = create<ChatState>((set) => ({
   currentConversation: null,
   messages: {},
   hasMoreMessages: {},
+  userPresence: {},
 
   setConversations: (conversations) => set({ conversations }),
   
@@ -81,4 +90,21 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({
       hasMoreMessages: { ...state.hasMoreMessages, [conversationId]: hasMore },
     })),
+
+  setUserPresence: (userId, status, lastSeen) =>
+    set((state) => ({
+      userPresence: {
+        ...state.userPresence,
+        [userId]: { status, lastSeen: lastSeen ?? state.userPresence[userId]?.lastSeen ?? Date.now() },
+      },
+    })),
+
+  setUsersOnline: (userIds) =>
+    set((state) => {
+      const updated = { ...state.userPresence };
+      userIds.forEach((id) => {
+        updated[id] = { status: 'online', lastSeen: updated[id]?.lastSeen ?? Date.now() };
+      });
+      return { userPresence: updated };
+    }),
 }));

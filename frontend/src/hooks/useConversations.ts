@@ -6,7 +6,7 @@ import { wsService } from '../services/websocket';
 import type { Conversation } from '../types/chat.types';
 
 export const useConversations = () => {
-  const { conversations, setConversations, currentConversation, setCurrentConversation } = useChatStore();
+  const { conversations, setConversations, currentConversation, setCurrentConversation, setUserPresence, setUsersOnline } = useChatStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +17,18 @@ export const useConversations = () => {
       loadConversations();
     }
   }, [user]);
+
+  // Suscribirse a eventos de presencia
+  useEffect(() => {
+    wsService.onPresenceInitial((userIds) => setUsersOnline(userIds));
+
+    const handleStatus = (data: { userId: string; status: 'online' | 'offline'; lastSeen?: number }) => {
+      setUserPresence(data.userId, data.status, data.lastSeen);
+    };
+    wsService.onUserStatus(handleStatus);
+
+    return () => wsService.offUserStatus(handleStatus);
+  }, []);
 
   // Escuchar nuevos mensajes para actualizar "último mensaje"
   useEffect(() => {

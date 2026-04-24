@@ -46,6 +46,10 @@ io.on('connection', (socket) => {
     console.log(`Usuario ${userId} autenticado`);
 
     socket.broadcast.emit('user:status', { userId, status: 'online' });
+
+    // Enviar lista de usuarios online al que se acaba de conectar
+    const onlineUserIds = Array.from(connectedUsers.values()).filter((id) => id !== userId);
+    socket.emit('presence:initial', onlineUserIds);
   });
 
   // Unirse a conversación
@@ -158,9 +162,10 @@ io.on('connection', (socket) => {
     const userId = connectedUsers.get(socket.id);
 
     if (userId) {
+      const lastSeen = Date.now();
       dataService.updateUserStatus(userId, 'offline');
       connectedUsers.delete(socket.id);
-      socket.broadcast.emit('user:status', { userId, status: 'offline' });
+      socket.broadcast.emit('user:status', { userId, status: 'offline', lastSeen });
       console.log(`Usuario ${userId} desconectado`);
     }
 

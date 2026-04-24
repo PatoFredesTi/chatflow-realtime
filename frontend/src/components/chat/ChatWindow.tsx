@@ -5,14 +5,17 @@ import { TypingIndicator } from './TypingIndicator';
 import { Avatar } from '../common';
 import { useMessages, useTyping } from '../../hooks';
 import { useAuthStore } from '../../stores/authStore';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface ChatWindowProps {
   conversationId: string;
   conversationName: string;
   isOnline?: boolean;
+  lastSeen?: number;
 }
 
-export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatWindowProps) => {
+export const ChatWindow = ({ conversationId, conversationName, isOnline, lastSeen }: ChatWindowProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
@@ -25,7 +28,13 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
 
   const { user } = useAuthStore();
   const { messages, isLoading, isLoadingMore, hasMore, sendMessage, loadMoreMessages, toggleReaction } = useMessages(conversationId);
-  const { typingUsers } = useTyping(conversationId);
+  const { typingUsers, startTyping, stopTyping } = useTyping(conversationId);
+
+  const presenceText = isOnline
+    ? 'En línea'
+    : lastSeen
+    ? `Última vez ${formatDistanceToNow(new Date(lastSeen), { addSuffix: true, locale: es })}`
+    : 'Desconectado';
 
   // Restaurar posición de scroll después de prepend
   useLayoutEffect(() => {
@@ -127,7 +136,7 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
                 }}></div>
               )}
               <p style={{ fontSize: '12px', color: isOnline ? 'var(--msn-green)' : 'rgba(255,255,255,0.5)' }}>
-                {isOnline ? 'En línea' : 'Desconectado'}
+                {presenceText}
               </p>
             </div>
           </div>
@@ -365,7 +374,11 @@ export const ChatWindow = ({ conversationId, conversationName, isOnline }: ChatW
       )}
 
       {/* Input de mensaje */}
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        onStartTyping={startTyping}
+        onStopTyping={stopTyping}
+      />
     </div>
   );
 };

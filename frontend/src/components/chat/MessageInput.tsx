@@ -3,15 +3,27 @@ import type { KeyboardEvent } from 'react';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
+  onStartTyping?: () => void;
+  onStopTyping?: () => void;
 }
 
-export const MessageInput = ({ onSendMessage }: MessageInputProps) => {
+export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: MessageInputProps) => {
   const [message, setMessage] = useState('');
 
   const handleSend = () => {
     if (message.trim()) {
+      onStopTyping?.();
       onSendMessage(message.trim());
       setMessage('');
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    if (e.target.value) {
+      onStartTyping?.();
+    } else {
+      onStopTyping?.();
     }
   };
 
@@ -65,8 +77,9 @@ export const MessageInput = ({ onSendMessage }: MessageInputProps) => {
         {/* Textarea */}
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onBlur={() => onStopTyping?.()}
           placeholder="Escribe un mensaje..."
           rows={1}
           style={{

@@ -3,9 +3,13 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from '../chat';
 import { useConversations, useNotifications } from '../../hooks';
+import { useChatStore } from '../../stores/chatStore';
+import { useAuthStore } from '../../stores/authStore';
 
 export const ChatLayout = () => {
   const { currentConversation, conversations, selectConversation } = useConversations();
+  const { userPresence } = useChatStore();
+  const { user } = useAuthStore();
 
   const handleNotificationClick = useCallback(
     (conversationId: string) => selectConversation(conversationId),
@@ -21,6 +25,11 @@ export const ChatLayout = () => {
 
   const currentConv = getCurrentConversation();
   const conversationName = currentConv?.name || 'Usuario';
+
+  const partnerId = currentConv?.participants.find((id) => id !== user?.userId);
+  const partnerPresence = partnerId ? userPresence[partnerId] : undefined;
+  const isOnline = partnerPresence?.status === 'online';
+  const lastSeen = partnerPresence?.lastSeen;
 
   return (
     <div style={{ 
@@ -40,10 +49,11 @@ export const ChatLayout = () => {
         <Sidebar />
         
         {currentConversation ? (
-          <ChatWindow 
+          <ChatWindow
             conversationId={currentConversation}
             conversationName={conversationName}
-            isOnline={true}
+            isOnline={isOnline}
+            lastSeen={lastSeen}
           />
         ) : (
           <main style={{ 
