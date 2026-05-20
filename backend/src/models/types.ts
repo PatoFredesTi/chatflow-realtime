@@ -1,8 +1,12 @@
+// backend/src/models/types.ts
+
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error';
+
 export interface User {
   userId: string;
   email: string;
   username: string;
-  password: string;
+  passwordHash: string;
   avatar?: string;
   createdAt: number;
   lastSeen: number;
@@ -29,21 +33,6 @@ export interface Message {
   senderId: string;
   text: string;
   timestamp: number;
-  status: 'sent' | 'delivered' | 'read';
-  reactions?: {
-    [emoji: string]: string[]; // emoji -> array de userIds
-  };
-}
-
-export interface AuthResponse {
-  success: boolean;
-  user?: {
-    userId: string;
-    email: string;
-    username: string;
-    avatar?: string;
-    status: 'online' | 'offline';
-  };
-  accessToken?: string;
-  error?: string;
+  status: MessageStatus;
+  reactions?: Record<string, string[]>;
 }

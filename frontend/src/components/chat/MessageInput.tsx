@@ -1,31 +1,26 @@
-import { useState } from 'react';
-import type { KeyboardEvent } from 'react';  
+// components/chat/MessageInput.tsx
+import { useState, useCallback, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
+import { NudgeButton } from './NudgeButton';
+import { useTyping } from '../../hooks';
 
-interface MessageInputProps {
+interface Props {
   onSendMessage: (text: string) => void;
-  onStartTyping?: () => void;
-  onStopTyping?: () => void;
+  conversationId: string;
 }
 
-export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: MessageInputProps) => {
+export const MessageInput = ({ onSendMessage, conversationId }: Props) => {
   const [message, setMessage] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { notifyTyping } = useTyping(conversationId);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (message.trim()) {
-      onStopTyping?.();
       onSendMessage(message.trim());
       setMessage('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-    if (e.target.value) {
-      onStartTyping?.();
-    } else {
-      onStopTyping?.();
-    }
-  };
+  }, [message, onSendMessage]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -34,19 +29,25 @@ export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: Mes
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    if (e.target.value.trim()) notifyTyping();
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  };
+
   return (
-    <div style={{
-      padding: '16px 24px',
-      background: 'rgba(0, 13, 46, 0.6)',
-      backdropFilter: 'blur(10px)',
-      borderTop: '1px solid rgba(255,255,255,0.1)'
-    }}>
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        alignItems: 'flex-end'
-      }}>
-        {/* Botón de emojis */}
+    <div
+      style={{
+        padding: '16px 24px',
+        background: 'rgba(0, 13, 46, 0.6)',
+        backdropFilter: 'blur(10px)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+        {/* Emoji button */}
         <button
           title="Emojis"
           style={{
@@ -60,26 +61,26 @@ export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: Mes
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'all 0.2s ease',
-            flexShrink: 0
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
-            e.currentTarget.style.color = 'white';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+            flexShrink: 0,
+            height: '44px',
+            width: '44px',
+            fontSize: '18px',
           }}
         >
           😊
         </button>
 
+        {/* NudgeButton */}
+        <div style={{ flexShrink: 0, height: '44px', display: 'flex', alignItems: 'center' }}>
+          <NudgeButton conversationId={conversationId} />
+        </div>
+
         {/* Textarea */}
         <textarea
+          ref={textareaRef}
           value={message}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onBlur={() => onStopTyping?.()}
           placeholder="Escribe un mensaje..."
           rows={1}
           style={{
@@ -90,33 +91,24 @@ export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: Mes
             borderRadius: '10px',
             color: 'white',
             fontSize: '14px',
-            fontFamily: 'inherit',
             outline: 'none',
             resize: 'none',
             maxHeight: '120px',
             minHeight: '44px',
-            transition: 'all 0.2s ease'
-          }}
-          onFocus={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.12)';
-            e.target.style.borderColor = 'var(--msn-blue-bright)';
-            e.target.style.boxShadow = '0 0 0 2px rgba(26, 140, 255, 0.1)';
-          }}
-          onBlur={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.08)';
-            e.target.style.borderColor = 'rgba(255,255,255,0.12)';
-            e.target.style.boxShadow = 'none';
+            transition: 'background 0.2s ease, border-color 0.2s ease',
+            overflowY: 'auto',
           }}
         />
 
-        {/* Botón enviar */}
+        {/* Send button */}
         <button
           onClick={handleSend}
           disabled={!message.trim()}
-          title="Enviar mensaje"
+          title="Enviar"
           style={{
             padding: '10px 20px',
-            background: message.trim() 
+            height: '44px',
+            background: message.trim()
               ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
               : 'rgba(255,255,255,0.05)',
             border: 'none',
@@ -129,18 +121,7 @@ export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: Mes
             transition: 'all 0.2s ease',
             boxShadow: message.trim() ? '0 4px 12px rgba(0, 119, 255, 0.3)' : 'none',
             fontWeight: 600,
-            fontSize: '14px',
-            flexShrink: 0
-          }}
-          onMouseEnter={(e) => {
-            if (message.trim()) {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 119, 255, 0.4)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = message.trim() ? '0 4px 12px rgba(0, 119, 255, 0.3)' : 'none';
+            flexShrink: 0,
           }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -149,13 +130,16 @@ export const MessageInput = ({ onSendMessage, onStartTyping, onStopTyping }: Mes
         </button>
       </div>
 
-      <p style={{
-        fontSize: '11px',
-        color: 'rgba(255,255,255,0.4)',
-        marginTop: '8px',
-        marginLeft: '4px'
-      }}>
-        Presiona Enter para enviar, Shift + Enter para nueva línea
+      <p
+        style={{
+          fontSize: '11px',
+          color: 'rgba(255,255,255,0.4)',
+          marginTop: '8px',
+          marginLeft: '4px',
+          marginBottom: 0,
+        }}
+      >
+        Enter para enviar · Shift+Enter para nueva línea · 📳 para zumbar
       </p>
     </div>
   );

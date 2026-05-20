@@ -1,107 +1,71 @@
-import { useState, useEffect } from 'react';
+// hooks/useConversations.ts
+import { useEffect, useState } from 'react';
 import { useChatStore } from '../stores/chatStore';
-import { useAuthStore } from '../stores/authStore';
+import { useSocketStore } from '../stores/socketStore';
 import { conversationAPI } from '../services/api';
-import { wsService } from '../services/websocket';
 import type { Conversation } from '../types/chat.types';
+import type { Message } from '../types/message.types';
 
-export const useConversations = () => {
-  const { conversations, setConversations, currentConversation, setCurrentConversation, setUserPresence, setUsersOnline } = useChatStore();
-  const { user } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function useConversations() {
+  const { conversations, setConversations, addConversation, updateConversationLastMessage, updateUserStatus } =
+    useChatStore();
+  const socket = useSocketStore((s) => s.socket);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar conversaciones al iniciar
+  // Initial load
   useEffect(() => {
-    if (user) {
-      loadConversations();
-    }
-  }, [user]);
-
-  // Suscribirse a eventos de presencia
-  useEffect(() => {
-    wsService.onPresenceInitial((userIds) => setUsersOnline(userIds));
-
-    const handleStatus = (data: { userId: string; status: 'online' | 'offline'; lastSeen?: number }) => {
-      setUserPresence(data.userId, data.status, data.lastSeen);
-    };
-    wsService.onUserStatus(handleStatus);
-
-    return () => wsService.offUserStatus(handleStatus);
-  }, []);
-
-  // Escuchar nuevos mensajes para actualizar "último mensaje"
-  useEffect(() => {
-    const handleNewMessage = (message: any) => {
-      setConversations(
-        conversations.map((conv) =>
-          conv.conversationId === message.conversationId
-            ? {
-                ...conv,
-                lastMessage: {
-                  text: message.text,
-                  senderId: message.senderId,
-                  timestamp: message.timestamp,
-                },
-                lastMessageAt: message.timestamp,
-              }
-            : conv
-        )
-      );
-    };
-
-    wsService.onNewMessage(handleNewMessage);
-  }, [conversations]);
-
-  const loadConversations = async () => {
-    if (!user) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await conversationAPI.getUserConversations(user.userId);
-      
-      if (response.success && response.conversations) {
-        setConversations(response.conversations);
+    const load = async () => {
+      try {
+        const response = await conversationAPI.list();
+        if (response.success) {
+          setConversations(response.conversations);
+        }
+      } catch (err) {
+        console.error('[useConversations] Load error:', err);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al cargar conversaciones';
-      setError(errorMessage);
-      console.error('Error cargando conversaciones:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    load();
+  }, [setConversations]);
 
-  const createConversation = async (participantIds: string[], type: 'individual' | 'group' = 'individual') => {
-    if (!user) return null;
+  // Listen for new messages to update conversation list
+  useEffect(() => {
+    if (!socket) return;
 
+    const handleNewMessage = (message: Message) => {
+      updateConversationLastMessage(message.conversationId, message);
+    };
+
+    const handleUserStatus = (data: { userId: string; status: 'online' | 'offline' }) => {
+      updateUserStatus(data.userId, data.status);
+    };
+
+    socket.on('message:new', handleNewMessage);
+    socket.on('user:status', handleUserStatus);
+
+    return () => {
+      socket.off('message:new', handleNewMessage);
+      socket.off('user:status', handleUserStatus);
+    };
+  }, [socket, updateConversationLastMessage, updateUserStatus]);
+
+  const createConversation = async (
+    participantIds: string[],
+    type: 'individual' | 'group',
+    name?: string
+  ): Promise<Conversation | null> => {
     try {
-      const response = await conversationAPI.createConversation([user.userId, ...participantIds], type);
-      
-      if (response.success && response.conversation) {
-        setConversations([...conversations, response.conversation]);
+      const response = await conversationAPI.create({ participantIds, type, name });
+      if (response.success) {
+        addConversation(response.conversation);
         return response.conversation;
       }
     } catch (err) {
-      console.error('Error creando conversación:', err);
+      console.error('[useConversations] Create error:', err);
     }
-
     return null;
   };
 
-  const selectConversation = (conversationId: string) => {
-    setCurrentConversation(conversationId);
-  };
-
-  return {
-    conversations,
-    currentConversation,
-    isLoading,
-    error,
-    loadConversations,
-    createConversation,
-    selectConversation,
-  };
-};
+  return { conversations, isLoading, createConversation };
+}

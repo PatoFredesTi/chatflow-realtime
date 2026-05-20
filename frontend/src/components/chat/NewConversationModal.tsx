@@ -1,296 +1,264 @@
+// components/chat/NewConversationModal.tsx
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '../../stores/authStore';
-import { userAPI } from '../../services/api';
-import { useConversations } from '../../hooks';
+import { Avatar } from '../common';
+import { authAPI } from '../../services/api';
+import type { User } from '../../types/chat.types';
 
-interface NewConversationModalProps {
-  isOpen: boolean;
+interface Props {
   onClose: () => void;
+  onCreate: (participantIds: string[], type: 'individual' | 'group', name?: string) => Promise<void>;
 }
 
-interface SearchedUser {
-  userId: string;
-  email: string;
-  username: string;
-  avatar?: string;
-  status: 'online' | 'offline';
-}
-
-export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
+export const NewConversationModal = ({ onClose, onCreate }: Props) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<User[]>([]);
+  const [selected, setSelected] = useState<User[]>([]);
+  const [groupName, setGroupName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const { user } = useAuthStore();
-  const { conversations, createConversation, selectConversation } = useConversations();
 
-  // Live search con debounce de 300ms
+  // Debounced search
   useEffect(() => {
-    if (searchQuery.length < 2) {
-      setSearchResults([]);
+    if (!query.trim()) {
+      setResults([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await userAPI.searchUsers(searchQuery, user?.userId);
-        if (response.success) setSearchResults(response.users);
-      } catch (error) {
-        console.error('Error buscando usuarios:', error);
+        const response = await authAPI.searchUsers(query);
+        if (response.success) {
+          setResults(response.users);
+        }
+      } catch (err) {
+        console.error('[NewConversationModal] Search error:', err);
       } finally {
         setIsSearching(false);
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, user?.userId]);
+  }, [query]);
 
-  const handleStartConversation = async (selectedUser: SearchedUser) => {
-    if (isCreating) return;
-
-    // Buscar conversación existente primero (deduplicación frontend)
-    const existing = conversations.find(
-      (c) => c.type === 'individual' && c.participants.includes(selectedUser.userId)
+  const toggleSelect = (user: User) => {
+    setSelected((prev) =>
+      prev.find((u) => u.userId === user.userId)
+        ? prev.filter((u) => u.userId !== user.userId)
+        : [...prev, user]
     );
-
-    if (existing) {
-      selectConversation(existing.conversationId);
-      handleClose();
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const conversation = await createConversation([selectedUser.userId], 'individual');
-      if (conversation) {
-        selectConversation(conversation.conversationId);
-        handleClose();
-      }
-    } catch (error) {
-      console.error('Error creando conversación:', error);
-    } finally {
-      setIsCreating(false);
-    }
   };
 
-  const handleClose = () => {
-    setSearchQuery('');
-    setSearchResults([]);
+  const isGroup = selected.length > 1;
+
+  const handleCreate = async () => {
+    if (selected.length === 0) return;
+    const type = isGroup ? 'group' : 'individual';
+    await onCreate(
+      selected.map((u) => u.userId),
+      type,
+      isGroup ? groupName.trim() || `Grupo de ${selected.length}` : undefined
+    );
     onClose();
   };
 
-  if (!isOpen) return null;
-
-  const showEmpty = searchQuery.length >= 2 && !isSearching && searchResults.length === 0;
-
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      {/* Overlay */}
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '24px',
+      }}
+    >
       <div
-        onClick={handleClose}
+        onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
+          width: '100%',
+          maxWidth: '480px',
+          background: 'rgba(0, 13, 46, 0.95)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
         }}
-      />
-
-      {/* Modal */}
-      <div style={{
-        position: 'relative',
-        background: 'rgba(0,13,46,0.95)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: '16px',
-        width: '90%',
-        maxWidth: '480px',
-        maxHeight: '80vh',
-        overflow: 'hidden',
-        boxShadow: '0 40px 80px rgba(0,0,0,0.5)',
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '24px 28px',
-          background: 'linear-gradient(135deg, rgba(0,80,208,0.6) 0%, rgba(26,140,255,0.3) 50%, rgba(0,51,153,0.5) 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: 0 }}>
-            Nueva Conversación
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: 'white' }}>
+            Nueva conversación
           </h2>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              color: 'rgba(255,255,255,0.8)',
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.5)',
               cursor: 'pointer',
-              padding: '6px',
+              fontSize: '20px',
+              padding: '4px',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            ✕
           </button>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: '24px 28px', maxHeight: 'calc(80vh - 90px)', overflowY: 'auto' }}>
-          {/* Search input */}
-          <div style={{ position: 'relative', marginBottom: '20px' }}>
-            <svg
-              style={{
-                position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
-                width: '16px', height: '16px', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none',
-              }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              autoFocus
-              placeholder="Buscar por nombre o email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Escape' && handleClose()}
-              style={{
-                width: '100%',
-                padding: '13px 16px 13px 40px',
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '10px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'border-color 0.2s ease',
-              }}
-              onFocus={(e) => { e.target.style.borderColor = 'rgba(0,119,255,0.6)'; }}
-              onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; }}
-            />
-            {isSearching && (
-              <div style={{
-                position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)',
-                width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.2)',
-                borderTopColor: 'white', borderRadius: '50%',
-                animation: 'spin 0.6s linear infinite',
-              }} />
-            )}
-          </div>
+        {/* Search input */}
+        <input
+          type="text"
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar usuarios por nombre o email..."
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '10px',
+            color: 'white',
+            fontSize: '14px',
+            outline: 'none',
+            marginBottom: '16px',
+          }}
+        />
 
-          {/* Hint */}
-          {searchQuery.length < 2 && (
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '24px 0' }}>
-              Escribe al menos 2 caracteres para buscar
+        {/* Selected users */}
+        {selected.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+            {selected.map((u) => (
+              <button
+                key={u.userId}
+                onClick={() => toggleSelect(u)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  background: 'rgba(26,140,255,0.2)',
+                  border: '1px solid rgba(26,140,255,0.4)',
+                  borderRadius: '99px',
+                  color: 'white',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                {u.username}
+                <span style={{ opacity: 0.6 }}>✕</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Group name input */}
+        {isGroup && (
+          <input
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            placeholder={`Nombre del grupo (${selected.length} miembros)`}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '10px',
+              color: 'white',
+              fontSize: '13px',
+              outline: 'none',
+              marginBottom: '16px',
+            }}
+          />
+        )}
+
+        {/* Results */}
+        <div style={{ maxHeight: '280px', overflowY: 'auto', marginBottom: '16px' }}>
+          {isSearching && (
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '8px 0' }}>Buscando...</p>
+          )}
+
+          {!isSearching && query && results.length === 0 && (
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '8px 0' }}>
+              No se encontraron usuarios
             </p>
           )}
 
-          {/* No results */}
-          {showEmpty && (
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '24px 0' }}>
-              No se encontraron usuarios con "{searchQuery}"
-            </p>
-          )}
+          {results.map((user) => {
+            const isSelected = selected.some((u) => u.userId === user.userId);
+            return (
+              <button
+                key={user.userId}
+                onClick={() => toggleSelect(user)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px',
+                  width: '100%',
+                  background: isSelected ? 'rgba(26,140,255,0.15)' : 'transparent',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  textAlign: 'left',
+                  marginBottom: '4px',
+                }}
+              >
+                <Avatar alt={user.username} online={user.status === 'online'} size="sm" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{user.username}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{user.email}</div>
+                </div>
+                {isSelected && <span style={{ color: 'var(--msn-blue-bright)' }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Results */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {searchResults.map((result) => {
-              const alreadyExists = conversations.some(
-                (c) => c.type === 'individual' && c.participants.includes(result.userId)
-              );
-
-              return (
-                <button
-                  key={result.userId}
-                  onClick={() => handleStartConversation(result)}
-                  disabled={isCreating}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    cursor: isCreating ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.15s ease',
-                    opacity: isCreating ? 0.6 : 1,
-                    textAlign: 'left',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isCreating) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                  }}
-                >
-                  {/* Avatar */}
-                  <div style={{
-                    width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
-                    background: 'linear-gradient(135deg, #0066ff, #00aaff)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '18px', fontWeight: 700, color: 'white',
-                    position: 'relative', boxShadow: '0 0 0 2px rgba(255,255,255,0.15)',
-                  }}>
-                    {result.username.charAt(0).toUpperCase()}
-                    {result.status === 'online' && (
-                      <div style={{
-                        position: 'absolute', bottom: '1px', right: '1px',
-                        width: '11px', height: '11px', background: 'var(--msn-green)',
-                        borderRadius: '50%', border: '2px solid rgba(0,13,46,0.95)',
-                      }} />
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <p style={{ fontWeight: 600, color: 'white', fontSize: '14px', marginBottom: '2px' }}>
-                      {result.username}
-                    </p>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {result.email}
-                    </p>
-                  </div>
-
-                  {/* Action label */}
-                  <span style={{
-                    fontSize: '11px', fontWeight: 600, flexShrink: 0,
-                    color: alreadyExists ? 'rgba(255,255,255,0.4)' : 'rgba(26,140,255,0.9)',
-                    background: alreadyExists ? 'rgba(255,255,255,0.06)' : 'rgba(0,119,255,0.15)',
-                    border: `1px solid ${alreadyExists ? 'rgba(255,255,255,0.1)' : 'rgba(0,119,255,0.3)'}`,
-                    borderRadius: '6px', padding: '4px 8px',
-                  }}>
-                    {alreadyExists ? 'Abrir chat' : 'Iniciar chat'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 18px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={selected.length === 0}
+            style={{
+              padding: '10px 18px',
+              background: selected.length > 0
+                ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
+                : 'rgba(255,255,255,0.05)',
+              border: 'none',
+              borderRadius: '8px',
+              color: selected.length > 0 ? 'white' : 'rgba(255,255,255,0.3)',
+              cursor: selected.length > 0 ? 'pointer' : 'not-allowed',
+              fontSize: '13px',
+              fontWeight: 600,
+              boxShadow: selected.length > 0 ? '0 4px 12px rgba(0, 119, 255, 0.3)' : 'none',
+            }}
+          >
+            {isGroup ? 'Crear grupo' : 'Iniciar chat'}
+          </button>
         </div>
       </div>
-
-      <style>{`@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }`}</style>
     </div>
   );
 };

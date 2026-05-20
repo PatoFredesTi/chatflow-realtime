@@ -1,11 +1,13 @@
+// stores/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AuthUser } from '../types/user.types';
+import type { User } from '../types/chat.types';
 
 interface AuthState {
-  user: AuthUser | null;
+  user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
-  setUser: (user: AuthUser) => void;
+  setAuth: (user: User, token: string) => void;
   logout: () => void;
 }
 
@@ -13,12 +15,17 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
-      setUser: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      setAuth: (user, token) => {
+        localStorage.setItem('chatflow_token', token);
+        set({ user, token, isAuthenticated: true });
+      },
+      logout: () => {
+        localStorage.removeItem('chatflow_token');
+        set({ user: null, token: null, isAuthenticated: false });
+      },
     }),
-    {
-      name: 'auth-storage',
-    }
+    { name: 'chatflow-auth' }
   )
 );

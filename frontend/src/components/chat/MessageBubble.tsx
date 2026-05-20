@@ -1,87 +1,54 @@
-import { useState, useRef } from 'react';
-import type { Message } from '../../types/message.types';
+// components/chat/MessageBubble.tsx
+import { useState } from 'react';
 import { Avatar } from '../common';
+import { MessageStatusIcon } from './MessageStatus';
+import { ReactionPicker } from './ReactionPicker';
 import { ReactionBadge } from './ReactionBadge';
+import { useReactions } from '../../hooks';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { Message } from '../../types/message.types';
 
-const EMOJI_OPTIONS = ['👍', '❤️', '😂', '😮', '😢'];
-
-interface MessageBubbleProps {
+interface Props {
   message: Message;
   isOwn: boolean;
   currentUserId: string;
+  conversationId: string;
   senderName?: string;
   showAvatar?: boolean;
-  onToggleReaction: (messageId: string, emoji: string) => void;
-  highlight?: string;
-  isCurrentMatch?: boolean;
 }
-
-const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const HighlightedText = ({ text, query }: { text: string; query: string }) => {
-  if (!query) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'));
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <mark
-            key={i}
-            style={{
-              background: 'rgba(255, 220, 0, 0.45)',
-              color: 'white',
-              borderRadius: '2px',
-              padding: '0 1px',
-            }}
-          >
-            {part}
-          </mark>
-        ) : (
-          part
-        )
-      )}
-    </>
-  );
-};
 
 export const MessageBubble = ({
   message,
   isOwn,
   currentUserId,
+  conversationId,
   senderName,
-  showAvatar,
-  onToggleReaction,
-  highlight,
-  isCurrentMatch,
-}: MessageBubbleProps) => {
+  showAvatar = true,
+}: Props) => {
   const [showPicker, setShowPicker] = useState(false);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleMouseEnter = () => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    setShowPicker(true);
-  };
-
-  const handleMouseLeave = () => {
-    hideTimeoutRef.current = setTimeout(() => setShowPicker(false), 350);
-  };
+  const { toggleReaction } = useReactions(conversationId);
 
   const formatTime = (timestamp: number) =>
     formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: es });
 
-  const hasReactions = message.reactions && Object.keys(message.reactions).length > 0;
+  const handleReact = (emoji: string) => {
+    toggleReaction(message.messageId, emoji, currentUserId);
+    setShowPicker(false);
+  };
+
+  const reactions = Object.entries(message.reactions ?? {}).filter(
+    ([, users]) => users.length > 0
+  );
 
   return (
     <div
-      id={`msg-${message.messageId}`}
       style={{
         display: 'flex',
-        justifyContent: isOwn ? 'flex-end' : 'flex-start',
-        marginBottom: '16px',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        alignItems: 'flex-end',
         gap: '8px',
-        animation: 'fadeIn 0.3s ease-out',
+        marginBottom: reactions.length > 0 ? '20px' : '12px',
       }}
     >
       {!isOwn && (
@@ -92,10 +59,11 @@ export const MessageBubble = ({
 
       <div
         style={{
-          maxWidth: '65%',
           display: 'flex',
           flexDirection: 'column',
-          gap: '4px',
+          alignItems: isOwn ? 'flex-end' : 'flex-start',
+          maxWidth: '70%',
+          position: 'relative',
         }}
       >
         {!isOwn && senderName && showAvatar && (
@@ -103,142 +71,87 @@ export const MessageBubble = ({
             style={{
               fontSize: '11px',
               color: 'rgba(255,255,255,0.5)',
-              paddingLeft: '12px',
-              fontWeight: 500,
+              marginBottom: '3px',
+              paddingLeft: '4px',
             }}
           >
             {senderName}
           </span>
         )}
 
-        {/* Bubble + picker wrapper */}
         <div
           style={{ position: 'relative' }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => setShowPicker(true)}
+          onMouseLeave={() => setShowPicker(false)}
         >
-          {/* Emoji picker */}
-          {showPicker && (
-            <div
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              style={{
-                position: 'absolute',
-                [isOwn ? 'right' : 'left']: 0,
-                bottom: 'calc(100% + 6px)',
-                display: 'flex',
-                gap: '4px',
-                background: 'rgba(30,30,40,0.95)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '20px',
-                padding: '6px 10px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                zIndex: 10,
-              }}
-            >
-              {EMOJI_OPTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    onToggleReaction(message.messageId, emoji);
-                    setShowPicker(false);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    padding: '2px 4px',
-                    borderRadius: '8px',
-                    transition: 'transform 0.1s ease',
-                    lineHeight: 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
+          {showPicker && <ReactionPicker onReact={handleReact} isOwn={isOwn} />}
 
-          {/* Message bubble */}
           <div
             style={{
-              position: 'relative',
-              padding: '12px 16px',
+              padding: '10px 14px',
               borderRadius: isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
               background: isOwn
                 ? 'linear-gradient(135deg, #0055dd 0%, #0077ff 100%)'
-                : 'rgba(255,255,255,0.08)',
-              backdropFilter: 'blur(10px)',
-              border: isCurrentMatch
-                ? '1px solid rgba(255, 220, 0, 0.7)'
-                : `1px solid ${isOwn ? 'rgba(0, 119, 255, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-              boxShadow: isCurrentMatch
-                ? '0 0 0 2px rgba(255, 220, 0, 0.25)'
-                : isOwn
-                ? '0 4px 12px rgba(0, 119, 255, 0.2)'
-                : '0 2px 8px rgba(0,0,0,0.1)',
+                : 'rgba(255,255,255,0.1)',
+              border: isOwn ? 'none' : '1px solid rgba(255,255,255,0.1)',
+              color: 'white',
+              fontSize: '14px',
+              lineHeight: '1.45',
               wordBreak: 'break-word',
-              transition: 'border 0.15s ease, box-shadow 0.15s ease',
+              whiteSpace: 'pre-wrap',
+              boxShadow: isOwn
+                ? '0 2px 12px rgba(0, 119, 255, 0.25)'
+                : '0 2px 8px rgba(0,0,0,0.2)',
             }}
           >
-            <p style={{ color: 'white', fontSize: '14px', lineHeight: 1.5, margin: 0 }}>
-              <HighlightedText text={message.text} query={highlight || ''} />
-            </p>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginTop: '6px',
-                fontSize: '10px',
-                color: isOwn ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.4)',
-              }}
-            >
-              <span>{formatTime(message.timestamp)}</span>
-
-              {isOwn && (
-                <span style={{ display: 'flex', alignItems: 'center' }}>
-                  {message.status === 'sending' && '⏱'}
-                  {message.status === 'sent' && '✓'}
-                  {message.status === 'delivered' && '✓✓'}
-                  {message.status === 'read' && (
-                    <span style={{ color: 'var(--msn-blue-sky)' }}>✓✓</span>
-                  )}
-                </span>
-              )}
-            </div>
+            {message.text}
           </div>
+        </div>
 
-          {/* Reaction badges */}
-          {hasReactions && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '4px',
-                marginTop: '4px',
-                justifyContent: isOwn ? 'flex-end' : 'flex-start',
-              }}
-            >
-              {Object.entries(message.reactions!).map(([emoji, userIds]) => (
-                <ReactionBadge
-                  key={emoji}
-                  emoji={emoji}
-                  userIds={userIds}
-                  userId={currentUserId}
-                  onToggle={(e) => onToggleReaction(message.messageId, e)}
-                />
-              ))}
-            </div>
-          )}
+        {reactions.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '4px',
+              marginTop: '4px',
+              paddingLeft: isOwn ? 0 : '2px',
+              paddingRight: isOwn ? '2px' : 0,
+            }}
+          >
+            {reactions.map(([emoji, userIds]) => (
+              <ReactionBadge
+                key={emoji}
+                emoji={emoji}
+                userIds={userIds}
+                currentUserId={currentUserId}
+                onClick={() => toggleReaction(message.messageId, emoji, currentUserId)}
+              />
+            ))}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            marginTop: '4px',
+            flexDirection: isOwn ? 'row' : 'row-reverse',
+            paddingRight: isOwn ? '2px' : 0,
+            paddingLeft: isOwn ? 0 : '2px',
+          }}
+        >
+          {isOwn && <MessageStatusIcon status={message.status} />}
+          <span
+            style={{
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.35)',
+              userSelect: 'none',
+            }}
+          >
+            {formatTime(message.timestamp)}
+          </span>
         </div>
       </div>
     </div>

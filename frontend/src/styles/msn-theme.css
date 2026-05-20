@@ -1,130 +1,38 @@
-
-/* MSN Messenger Theme - ChatFlow */
-*, *::before, *::after {
-box-sizing: border-box;
-margin: 0;
-padding: 0;
-}
+/* msn-theme.css — Custom CSS variables for the MSN Messenger style */
 :root {
---msn-blue-deep: #003399;
---msn-blue-mid: #0050d0;
---msn-blue-bright: #1a8cff;
---msn-blue-sky: #4db8ff;
---msn-orange: #ff6600;
---msn-green: #00cc44;
---msn-silver: #e8edf5;
---msn-glass: rgba(255,255,255,0.12);
---msn-glass-border: rgba(255,255,255,0.25);
---text-light: rgba(255,255,255,0.95);
---text-muted: rgba(255,255,255,0.6);
+  --msn-blue-dark: #001135;
+  --msn-blue-mid: #003399;
+  --msn-blue: #0050d0;
+  --msn-blue-bright: #1a8cff;
+  --msn-blue-light: #4da6ff;
+
+  --msn-green: #4ade80;
+  --msn-green-glow: rgba(74, 222, 128, 0.6);
+
+  --msn-bg-gradient: linear-gradient(135deg, #001135 0%, #003399 50%, #0050d0 100%);
+
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
 }
-html, body, #root {
-height: 100%;
-overflow: auto; 
-}
+
+/* Animated background — subtle */
 body {
-font-family: 'Segoe UI', 'Trebuchet MS', sans-serif;
-background: #000d2e;
+  background: var(--msn-bg-gradient);
+  background-attachment: fixed;
 }
-/* ───── ANIMATED BACKGROUND ───── */
-.bg-scene {
-position: fixed;
-inset: 0;
-overflow: hidden;
-z-index: 0;
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(26, 140, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 80, 208, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
-.bg-gradient {
-position: absolute;
-inset: 0;
-background:
-radial-gradient(ellipse 80% 60% at 20% 80%, #001a66 0%, transparent 60%),
-radial-gradient(ellipse 60% 50% at 80% 20%, #002299 0%, transparent 55%),
-radial-gradient(ellipse 100% 80% at 50% 50%, #000d2e 30%, #001144 100%);
-}
-/* Floating orbs */
-.orb {
-position: absolute;
-border-radius: 50%;
-filter: blur(60px);
-animation: drift var(--dur) ease-in-out infinite alternate;
-opacity: 0.35;
-}
-.orb-1 { width: 500px; height: 500px; background: #0044cc; top: -15%; left: -10%; --dur: 12s; }
-.orb-2 { width: 350px; height: 350px; background: #0077ff; bottom: -10%; right: -5%; --dur: 9s; animation-direction: alternate-reverse; }
-.orb-3 { width: 250px; height: 250px; background: #1a99ff; top: 40%; left: 60%; --dur: 15s; }
-.orb-4 { width: 180px; height: 180px; background: #ff6600; top: 10%; right: 25%; --dur: 11s; opacity: 0.15; }
-@keyframes drift {
-0% { transform: translate(0, 0) scale(1); }
-100% { transform: translate(30px, 20px) scale(1.08); }
-}
-/* Star particles */
-.stars {
-position: absolute;
-inset: 0;
-}
-.star {
-position: absolute;
-width: 2px;
-height: 2px;
-background: white;
-border-radius: 50%;
-animation: twinkle var(--tw) ease-in-out infinite;
-opacity: 0;
-}
-@keyframes twinkle {
-0%, 100% { opacity: 0; transform: scale(1); }
-50% { opacity: 0.8; transform: scale(1.5); }
-}
-/* Scan lines for retro feel */
-.scanlines {
-position: absolute;
-inset: 0;
-background: repeating-linear-gradient(
-0deg,
-transparent,
-transparent 2px,
-rgba(0,0,0,0.03) 2px,
-rgba(0,0,0,0.03) 4px
-);
-pointer-events: none;
-}
-/* ───── MSN BUTTERFLY ───── */
-.butterfly-container {
-position: absolute;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%);
-z-index: 1;
-pointer-events: none;
-}
-.butterfly-bg {
-width: 900px;
-height: 900px;
-opacity: 0.04;
-animation: butter-spin 60s linear infinite;
-}
-@keyframes butter-spin {
-from { transform: rotate(0deg); }
-to { transform: rotate(360deg); }
-}
-/* Animaciones globales */
-@keyframes slideUp {
-from { opacity: 0; transform: translateY(40px) scale(0.97); }
-to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes fadeIn {
-from { opacity: 0; transform: translateY(8px); }
-to { opacity: 1; transform: translateY(0); }
-}
-@keyframes shake {
-0%, 100% { transform: translateX(0); }
-10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-@keyframes pulse-green {
-0%, 100% { box-shadow: 0 0 4px var(--msn-green); transform: scale(1); }
-50% { box-shadow: 0 0 12px var(--msn-green), 0 0 20px rgba(0,204,68,0.3); transform: scale(1.2); }
-}
-@keyframes spin {
-to { transform: rotate(360deg); }
+
+#root {
+  position: relative;
+  z-index: 1;
 }

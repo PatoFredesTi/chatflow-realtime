@@ -1,3 +1,12 @@
+// types/chat.types.ts
+
+export interface User {
+  userId: string;
+  email: string;
+  username: string;
+  status?: 'online' | 'offline';
+}
+
 export interface Conversation {
   conversationId: string;
   type: 'individual' | 'group';
@@ -10,5 +19,8 @@ export interface Conversation {
     senderId: string;
     timestamp: number;
   };
-  unreadCount?: number;
+  // Enriched fields from backend
+  displayName?: string;
+  otherUserId?: string;
+  isOnline?: boolean;
 }

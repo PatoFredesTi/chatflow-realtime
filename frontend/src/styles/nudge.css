@@ -1,0 +1,51 @@
+/* nudge.css */
+
+/* Button shake — small, snappy */
+@keyframes nudge-shake {
+  0%   { transform: translateX(0) rotate(0deg); }
+  10%  { transform: translateX(-5px) rotate(-4deg); }
+  20%  { transform: translateX(5px)  rotate(4deg); }
+  30%  { transform: translateX(-5px) rotate(-3deg); }
+  40%  { transform: translateX(5px)  rotate(3deg); }
+  50%  { transform: translateX(-4px) rotate(-2deg); }
+  60%  { transform: translateX(4px)  rotate(2deg); }
+  70%  { transform: translateX(-3px) rotate(-1deg); }
+  80%  { transform: translateX(3px)  rotate(1deg); }
+  90%  { transform: translateX(-1px) rotate(0deg); }
+  100% { transform: translateX(0)    rotate(0deg); }
+}
+
+.nudge-shake {
+  animation: nudge-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Window shake — bigger, the classic MSN nudge */
+@keyframes nudge-window-shake {
+  0%   { transform: translate(0, 0); }
+  5%   { transform: translate(-8px, -6px); }
+  10%  { transform: translate(8px,  6px); }
+  15%  { transform: translate(-8px,  4px); }
+  20%  { transform: translate(8px,  -4px); }
+  25%  { transform: translate(-6px,  6px); }
+  30%  { transform: translate(6px,  -6px); }
+  35%  { transform: translate(-6px, -4px); }
+  40%  { transform: translate(6px,   4px); }
+  45%  { transform: translate(-4px, -3px); }
+  50%  { transform: translate(4px,   3px); }
+  55%  { transform: translate(-3px,  2px); }
+  60%  { transform: translate(3px,  -2px); }
+  70%  { transform: translate(-2px,  1px); }
+  80%  { transform: translate(2px,  -1px); }
+  90%  { transform: translate(-1px,  0px); }
+  100% { transform: translate(0, 0); }
+}
+
+.nudge-window-shake {
+  animation: nudge-window-shake 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Banner entrance */
+@keyframes nudge-banner-in {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(0.85); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}

@@ -1,71 +1,62 @@
-import { useState, useEffect, useCallback } from 'react';
+// hooks/useTyping.ts
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSocketStore } from '../stores/socketStore';
 import { useAuthStore } from '../stores/authStore';
-import { wsService } from '../services/websocket';
 
-export const useTyping = (conversationId: string | null) => {
+interface TypingPayload {
+  userId: string;
+  username: string;
+}
+
+export function useTyping(conversationId: string) {
+  const socket = useSocketStore((s) => s.socket);
   const { user } = useAuthStore();
-  const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
-  // Configurar listeners de WebSocket
+  // Listen for others typing
   useEffect(() => {
-    if (!conversationId) return;
+    if (!socket) return;
 
-    const handleTypingStart = (data: { userId: string; username: string }) => {
-      // No mostrar cuando el usuario actual está escribiendo
-      if (data.userId !== user?.userId) {
-        setTypingUsers((prev) => {
-          if (prev.includes(data.username)) return prev;
-          return [...prev, data.username];
-        });
-      }
+    const handleStart = (payload: TypingPayload) => {
+      setTypingUsers((prev) =>
+        prev.includes(payload.username) ? prev : [...prev, payload.username]
+      );
     };
 
-    const handleTypingStop = (data: { userId: string }) => {
-      if (data.userId !== user?.userId) {
-        setTypingUsers((prev) => prev.filter((_, index) => index !== 0));
-      }
+    const handleStop = (payload: { userId: string }) => {
+      setTypingUsers((prev) => prev.filter((u) => u !== payload.userId));
     };
 
-    wsService.onTypingStart(handleTypingStart);
-    wsService.onTypingStop(handleTypingStop);
+    socket.on('typing:start', handleStart);
+    socket.on('typing:stop', handleStop);
 
     return () => {
-      // Cleanup si es necesario
+      socket.off('typing:start', handleStart);
+      socket.off('typing:stop', handleStop);
     };
-  }, [conversationId, user?.userId]);
+  }, [socket]);
 
-  // Notificar que el usuario está escribiendo
-  const startTyping = useCallback(() => {
-    if (!conversationId || !user) return;
+  const notifyTyping = useCallback(() => {
+    if (!socket || !user) return;
 
-    setIsTyping(true);
-    wsService.startTyping(conversationId, user.userId, user.username);
-  }, [conversationId, user]);
+    if (!isTypingRef.current) {
+      socket.emit('typing:start', {
+        conversationId,
+        userId: user.userId,
+        username: user.username,
+      });
+      isTypingRef.current = true;
+    }
 
-  // Notificar que el usuario dejó de escribir
-  const stopTyping = useCallback(() => {
-    if (!conversationId || !user) return;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    setIsTyping(false);
-    wsService.stopTyping(conversationId, user.userId);
-  }, [conversationId, user]);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing:stop', { conversationId, userId: user.userId });
+      isTypingRef.current = false;
+    }, 2000);
+  }, [socket, user, conversationId]);
 
-  // Auto-stop después de 3 segundos de inactividad
-  useEffect(() => {
-    if (!isTyping) return;
-
-    const timeout = setTimeout(() => {
-      stopTyping();
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [isTyping, stopTyping]);
-
-  return {
-    isTyping,
-    typingUsers,
-    startTyping,
-    stopTyping,
-  };
-};
+  return { typingUsers, notifyTyping };
+}

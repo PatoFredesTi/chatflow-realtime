@@ -1,116 +1,62 @@
-import type { LoginFormData, RegisterFormData } from '../utils/validators';
+// services/api.ts
+import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+const api = axios.create({ baseURL: API_URL });
+
+// Attach JWT token automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('chatflow_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ── Auth ──────────────────────────────────────────────────────────────────
 export const authAPI = {
-  login: async (data: LoginFormData) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al iniciar sesión');
-    }
-
-    return response.json();
+  register: async (data: { email: string; username: string; password: string }) => {
+    const res = await api.post('/api/auth/register', data);
+    return res.data;
   },
-
-  register: async (data: RegisterFormData) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: data.email,
-        username: data.username,
-        password: data.password,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al registrarse');
-    }
-
-    return response.json();
+  login: async (data: { email: string; password: string }) => {
+    const res = await api.post('/api/auth/login', data);
+    return res.data;
   },
-
-  logout: async (userId: string) => {
-    const response = await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId }),
-    });
-
-    return response.json();
+  me: async () => {
+    const res = await api.get('/api/auth/me');
+    return res.data;
+  },
+  searchUsers: async (query: string) => {
+    const res = await api.get('/api/auth/users/search', { params: { q: query } });
+    return res.data;
   },
 };
 
+// ── Conversations ─────────────────────────────────────────────────────────
 export const conversationAPI = {
-  getUserConversations: async (userId: string) => {
-    const response = await fetch(`${API_URL}/conversations/${userId}`);
-    
-    if (!response.ok) {
-      throw new Error('Error al obtener conversaciones');
-    }
-
-    return response.json();
+  list: async () => {
+    const res = await api.get('/api/conversations');
+    return res.data;
   },
-
-  getMessages: async (conversationId: string, before?: number, limit = 20) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (before !== undefined) params.append('before', String(before));
-
-    const response = await fetch(
-      `${API_URL}/conversations/${conversationId}/messages?${params}`
-    );
-
-    if (!response.ok) {
-      throw new Error('Error al obtener mensajes');
-    }
-
-    return response.json();
+  create: async (data: {
+    participantIds: string[];
+    type: 'individual' | 'group';
+    name?: string;
+  }) => {
+    const res = await api.post('/api/conversations', data);
+    return res.data;
   },
-
-  createConversation: async (participants: string[], type: 'individual' | 'group' = 'individual') => {
-    const response = await fetch(`${API_URL}/conversations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ participants, type }),
+  getMessages: async (
+    conversationId: string,
+    options: { limit?: number; before?: number } = {}
+  ) => {
+    const res = await api.get(`/api/conversations/${conversationId}/messages`, {
+      params: options,
     });
-
-    if (!response.ok) {
-      throw new Error('Error al crear conversación');
-    }
-
-    return response.json();
+    return res.data;
   },
 };
 
-// ← AGREGAR ESTA NUEVA SECCIÓN
-export const userAPI = {
-  searchUsers: async (query: string, excludeUserId?: string) => {
-    const params = new URLSearchParams({ q: query });
-    if (excludeUserId) {
-      params.append('exclude', excludeUserId);
-    }
-
-    const response = await fetch(`${API_URL}/users/search?${params}`);
-    
-    if (!response.ok) {
-      throw new Error('Error al buscar usuarios');
-    }
-
-    return response.json();
-  },
-};
+export default api;

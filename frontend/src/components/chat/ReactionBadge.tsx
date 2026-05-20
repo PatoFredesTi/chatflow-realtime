@@ -1,50 +1,55 @@
-interface ReactionBadgeProps {
+// components/chat/ReactionBadge.tsx
+
+interface Props {
   emoji: string;
   userIds: string[];
-  userId: string; // usuario actual
-  onToggle: (emoji: string) => void;
+  currentUserId: string;
+  onClick: () => void;
 }
 
-export const ReactionBadge = ({ emoji, userIds, userId, onToggle }: ReactionBadgeProps) => {
-  const hasReacted = userIds.includes(userId);
+export const ReactionBadge = ({ emoji, userIds, currentUserId, onClick }: Props) => {
   const count = userIds.length;
+  const iReacted = userIds.includes(currentUserId);
 
   if (count === 0) return null;
 
   return (
     <button
-      onClick={() => onToggle(emoji)}
-      title={`${count} reacción${count > 1 ? 'es' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      type="button"
+      title={iReacted ? 'Quitar reacción' : 'Reaccionar'}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '4px',
-        background: hasReacted
-          ? 'rgba(0, 119, 255, 0.2)'
-          : 'rgba(255, 255, 255, 0.07)',
-        border: hasReacted
-          ? '1px solid rgba(0, 119, 255, 0.5)'
-          : '1px solid rgba(255,255,255,0.1)',
+        gap: '3px',
+        padding: '2px 7px',
         borderRadius: '12px',
-        padding: '2px 8px',
+        border: iReacted
+          ? '1px solid rgba(56, 189, 248, 0.5)'
+          : '1px solid rgba(255,255,255,0.12)',
+        background: iReacted
+          ? 'rgba(56, 189, 248, 0.12)'
+          : 'rgba(255,255,255,0.07)',
         cursor: 'pointer',
-        fontSize: '13px',
-        color: 'white',
         transition: 'all 0.15s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = hasReacted
-          ? 'rgba(0, 119, 255, 0.3)'
-          : 'rgba(255,255,255,0.12)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = hasReacted
-          ? 'rgba(0, 119, 255, 0.2)'
-          : 'rgba(255, 255, 255, 0.07)';
+        fontSize: '13px',
+        lineHeight: 1,
       }}
     >
-      <span>{emoji}</span>
-      <span style={{ fontSize: '11px', fontWeight: 600, opacity: 0.9 }}>{count}</span>
+      <span style={{ fontSize: '13px', lineHeight: 1 }}>{emoji}</span>
+      <span
+        style={{
+          fontSize: '11px',
+          fontWeight: 500,
+          color: iReacted ? 'rgba(56, 189, 248, 0.9)' : 'rgba(255,255,255,0.6)',
+          minWidth: '8px',
+        }}
+      >
+        {count}
+      </span>
     </button>
   );
 };

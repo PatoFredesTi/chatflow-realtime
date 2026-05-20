@@ -1,4 +1,2 @@
-export * from './Avatar';
-export * from './Button';
-export * from './Input';
-export * from './Loader';
+// components/common/index.ts
+export { Avatar } from './Avatar';
